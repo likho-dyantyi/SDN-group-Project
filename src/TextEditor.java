@@ -1,3 +1,4 @@
+
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
@@ -17,24 +18,22 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
-
 /**
  *
  * @author cm coolmaster
  */
 public class TextEditor extends javax.swing.JFrame {
-    
+
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(TextEditor.class.getName());
-    
+
     private File currentFile = null;
     private int findIndex = 0;
-    
+
     public TextEditor() {
         initComponents();
         setTitle("Group 5 Text Editor");
         setLocationRelativeTo(null);
     }
-    
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -49,6 +48,7 @@ public class TextEditor extends javax.swing.JFrame {
         jMenu2 = new javax.swing.JMenu();
         jScrollPane1 = new javax.swing.JScrollPane();
         jTextArea1 = new javax.swing.JTextArea();
+        jlblWords = new javax.swing.JLabel();
         jMenuBar1 = new javax.swing.JMenuBar();
         jMenu3 = new javax.swing.JMenu();
         jMenuItem1 = new javax.swing.JMenuItem();
@@ -67,7 +67,27 @@ public class TextEditor extends javax.swing.JFrame {
 
         jTextArea1.setColumns(20);
         jTextArea1.setRows(5);
+        jTextArea1.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            @Override
+            public void insertUpdate(javax.swing.event.DocumentEvent e) {
+                updateMyWordCount();
+            }
+
+            @Override
+            public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                updateMyWordCount();
+            }
+
+            @Override
+            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                updateMyWordCount();
+            }
+        });
         jScrollPane1.setViewportView(jTextArea1);
+
+        jlblWords.setFont(new java.awt.Font("Times New Roman", 2, 14)); // NOI18N
+        jlblWords.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        jlblWords.setVerticalAlignment(javax.swing.SwingConstants.BOTTOM);
 
         jMenu3.setText("File");
 
@@ -107,18 +127,23 @@ public class TextEditor extends javax.swing.JFrame {
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 500, Short.MAX_VALUE)
+            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 499, Short.MAX_VALUE)
+            .addComponent(jlblWords, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 419, Short.MAX_VALUE)
+            .addGroup(layout.createSequentialGroup()
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 419, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jlblWords, javax.swing.GroupLayout.DEFAULT_SIZE, 26, Short.MAX_VALUE)
+                .addContainerGap())
         );
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
     private void jMenuItem1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem1ActionPerformed
-       JFileChooser chooser = new JFileChooser();
+        JFileChooser chooser = new JFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter("Text Files (*.txt)", "txt"));
         int option = chooser.showOpenDialog(this);
         if (option == JFileChooser.APPROVE_OPTION) {
@@ -132,18 +157,18 @@ public class TextEditor extends javax.swing.JFrame {
             }
         }
     }//GEN-LAST:event_jMenuItem1ActionPerformed
-    
+
     // New File
     private void jMenuItem2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem2ActionPerformed
         jTextArea1.setText("");
         currentFile = null;
         setTitle("Text Editor - Untitled");
     }//GEN-LAST:event_jMenuItem2ActionPerformed
-    
+
     // Save File
     private void jMenuItem3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem3ActionPerformed
         if (currentFile == null) {
-            jMenuItem4ActionPerformed(evt); 
+            jMenuItem4ActionPerformed(evt);
         } else {
             saveToFile(currentFile);
         }
@@ -156,13 +181,13 @@ public class TextEditor extends javax.swing.JFrame {
         int option = chooser.showSaveDialog(this);
         if (option == JFileChooser.APPROVE_OPTION) {
             File file = chooser.getSelectedFile();
-            
+
             //file .txt extension
             String filePath = file.getAbsolutePath();
             if (!filePath.toLowerCase().endsWith(".txt")) {
                 file = new File(filePath + ".txt");
             }
-            
+
             saveToFile(file);
         }
     }//GEN-LAST:event_jMenuItem4ActionPerformed
@@ -176,15 +201,22 @@ public class TextEditor extends javax.swing.JFrame {
             JOptionPane.showMessageDialog(this, "Error saving file: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-    
+
     private void jMenuItem5ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem5ActionPerformed
-       System.exit(0);
+        System.exit(0);
     }//GEN-LAST:event_jMenuItem5ActionPerformed
 
     private void jMenuItem6ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem6ActionPerformed
-       openFindReplaceDialog(evt);
+        openFindReplaceDialog(evt);
     }//GEN-LAST:event_jMenuItem6ActionPerformed
 
+    private void updateMyWordCount() {
+        String text = jTextArea1.getText();
+        String trimmed = text.trim();
+        int totalWords = trimmed.isEmpty() ? 0 : trimmed.split("\\s+").length;
+        jlblWords.setText("Word count: "+totalWords);
+    }
+    
     //find and replace
     private void openFindReplaceDialog(ActionEvent evt) {
         JDialog dialog = new JDialog(this, "Find and Replace", false);
@@ -219,16 +251,18 @@ public class TextEditor extends javax.swing.JFrame {
         findButton.addActionListener(e -> {
             String textToFind = findField.getText();
             String content = jTextArea1.getText();
-            if (textToFind.isEmpty()) return;
+            if (textToFind.isEmpty()) {
+                return;
+            }
 
             findIndex = content.indexOf(textToFind, findIndex);
             if (findIndex != -1) {
                 jTextArea1.requestFocus();
                 jTextArea1.select(findIndex, findIndex + textToFind.length());
-                findIndex += textToFind.length(); 
+                findIndex += textToFind.length();
             } else {
                 JOptionPane.showMessageDialog(dialog, "No more matches found.");
-                findIndex = 0; 
+                findIndex = 0;
             }
         });
 
@@ -261,7 +295,6 @@ public class TextEditor extends javax.swing.JFrame {
         dialog.setVisible(true);
     }
 
-    
     /**
      * @param args the command line arguments
      */
@@ -276,7 +309,7 @@ public class TextEditor extends javax.swing.JFrame {
         } catch (ReflectiveOperationException | javax.swing.UnsupportedLookAndFeelException ex) {
             logger.log(java.util.logging.Level.SEVERE, null, ex);
         }
-        
+
         java.awt.EventQueue.invokeLater(() -> new TextEditor().setVisible(true));
     }
 
@@ -294,5 +327,6 @@ public class TextEditor extends javax.swing.JFrame {
     private javax.swing.JMenuItem jMenuItem6;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JTextArea jTextArea1;
+    private javax.swing.JLabel jlblWords;
     // End of variables declaration//GEN-END:variables
 }
