@@ -66,7 +66,7 @@ public class TextEditor extends javax.swing.JFrame {
         jMenu1 = new javax.swing.JMenu();
         jMenu2 = new javax.swing.JMenu();
         jScrollPane1 = new javax.swing.JScrollPane();
-        jTextArea1 = new javax.swing.JTextArea();
+        jtpWordSpace = new javax.swing.JTextPane();
         jlblWords = new javax.swing.JLabel();
         jMenuBar1 = new javax.swing.JMenuBar();
         jMenu3 = new javax.swing.JMenu();
@@ -84,9 +84,7 @@ public class TextEditor extends javax.swing.JFrame {
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
-        jTextArea1.setColumns(20);
-        jTextArea1.setRows(5);
-        jTextArea1.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+        jtpWordSpace.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             @Override
             public void insertUpdate(javax.swing.event.DocumentEvent e) {
                 updateMyWordCount();
@@ -102,7 +100,7 @@ public class TextEditor extends javax.swing.JFrame {
                 updateMyWordCount();
             }
         });
-        jScrollPane1.setViewportView(jTextArea1);
+        jScrollPane1.setViewportView(jtpWordSpace);
 
         jlblWords.setFont(new java.awt.Font("Leelawadee UI", 1, 14)); // NOI18N
         jlblWords.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
@@ -168,7 +166,7 @@ public class TextEditor extends javax.swing.JFrame {
         if (option == JFileChooser.APPROVE_OPTION) {
             File file = chooser.getSelectedFile();
             try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-                jTextArea1.read(reader, null);
+                jtpWordSpace.read(reader, null);
                 currentFile = file;
                 setTitle("Text Editor - " + file.getName());
             } catch (IOException e) {
@@ -179,7 +177,7 @@ public class TextEditor extends javax.swing.JFrame {
 
     // New File
     private void jMenuItem2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem2ActionPerformed
-        jTextArea1.setText("");
+        jtpWordSpace.setText("");
         currentFile = null;
         setTitle("Text Editor - Untitled");
     }//GEN-LAST:event_jMenuItem2ActionPerformed
@@ -213,7 +211,7 @@ public class TextEditor extends javax.swing.JFrame {
 
     private void saveToFile(File file) {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-            jTextArea1.write(writer);
+            jtpWordSpace.write(writer);
             currentFile = file;
             setTitle("Text Editor - " + file.getName());
         } catch (IOException e) {
@@ -230,7 +228,7 @@ public class TextEditor extends javax.swing.JFrame {
     }//GEN-LAST:event_jMenuItem6ActionPerformed
 
     private void updateMyWordCount() {
-        String text = jTextArea1.getText();
+        String text = jtpWordSpace.getText();
         String trimmed = text.trim();
         int totalWords = trimmed.isEmpty() ? 0 : trimmed.split("\\s+").length;
         jlblWords.setText("Word count: "+totalWords);
@@ -269,15 +267,15 @@ public class TextEditor extends javax.swing.JFrame {
         // Find Logic
         findButton.addActionListener(e -> {
             String textToFind = findField.getText();
-            String content = jTextArea1.getText();
+            String content = jtpWordSpace.getText();
             if (textToFind.isEmpty()) {
                 return;
             }
 
             findIndex = content.indexOf(textToFind, findIndex);
             if (findIndex != -1) {
-                jTextArea1.requestFocus();
-                jTextArea1.select(findIndex, findIndex + textToFind.length());
+                jtpWordSpace.requestFocus();
+                jtpWordSpace.select(findIndex, findIndex + textToFind.length());
                 findIndex += textToFind.length();
             } else {
                 JOptionPane.showMessageDialog(dialog, "No more matches found.");
@@ -288,9 +286,9 @@ public class TextEditor extends javax.swing.JFrame {
         // Replace Logic 
         replaceButton.addActionListener(e -> {
             String textToReplace = replaceField.getText();
-            String selectedText = jTextArea1.getSelectedText();
+            String selectedText = jtpWordSpace.getSelectedText();
             if (selectedText != null && !selectedText.isEmpty()) {
-                jTextArea1.replaceSelection(textToReplace);
+                jtpWordSpace.replaceSelection(textToReplace);
                 findButton.getActionListeners()[0].actionPerformed(e);
             } else {
                 JOptionPane.showMessageDialog(dialog, "Select or find a word to replace first.");
@@ -302,8 +300,8 @@ public class TextEditor extends javax.swing.JFrame {
             String textToFind = findField.getText();
             String textToReplace = replaceField.getText();
             if (!textToFind.isEmpty()) {
-                String content = jTextArea1.getText();
-                jTextArea1.setText(content.replace(textToFind, textToReplace));
+                String content = jtpWordSpace.getText();
+                jtpWordSpace.setText(content.replace(textToFind, textToReplace));
                 JOptionPane.showMessageDialog(dialog, "All occurrences replaced.");
             }
         });
@@ -316,7 +314,7 @@ public class TextEditor extends javax.swing.JFrame {
     
     //syntax
     private void initSyntaxHighlighting() {
-        jTextArea1.getDocument().addDocumentListener(new DocumentListener() {
+        jtpWordSpace.getDocument().addDocumentListener(new DocumentListener() {
             private void runLater() {
                 SwingUtilities.invokeLater(() -> applyHighlighting());
             }
@@ -333,10 +331,10 @@ public class TextEditor extends javax.swing.JFrame {
     }
 
     private void applyHighlighting() {
-        Highlighter highlighter = jTextArea1.getHighlighter();
+        Highlighter highlighter = jtpWordSpace.getHighlighter();
         highlighter.removeAllHighlights();
 
-        String text = jTextArea1.getText();
+        String text = jtpWordSpace.getText();
         if (text == null || text.isEmpty()) {
             return;
         }
@@ -399,7 +397,7 @@ public class TextEditor extends javax.swing.JFrame {
     private javax.swing.JMenuItem jMenuItem5;
     private javax.swing.JMenuItem jMenuItem6;
     private javax.swing.JScrollPane jScrollPane1;
-    private javax.swing.JTextArea jTextArea1;
     private javax.swing.JLabel jlblWords;
+    private javax.swing.JTextPane jtpWordSpace;
     // End of variables declaration//GEN-END:variables
 }

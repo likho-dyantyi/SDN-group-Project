@@ -130,13 +130,9 @@
 
       <Layout class="org.netbeans.modules.form.compat2.layouts.support.JScrollPaneSupportLayout"/>
       <SubComponents>
-        <Component class="javax.swing.JTextArea" name="jTextArea1">
-          <Properties>
-            <Property name="columns" type="int" value="20"/>
-            <Property name="rows" type="int" value="5"/>
-          </Properties>
+        <Component class="javax.swing.JTextPane" name="jtpWordSpace">
           <AuxValues>
-            <AuxValue name="JavaCodeGenerator_InitCodePost" type="java.lang.String" value="jTextArea1.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {&#xd;&#xa;    @Override&#xd;&#xa;    public void insertUpdate(javax.swing.event.DocumentEvent e) {&#xd;&#xa;        updateMyWordCount();&#xd;&#xa;    }&#xd;&#xa;&#xd;&#xa;    @Override&#xd;&#xa;    public void removeUpdate(javax.swing.event.DocumentEvent e) {&#xd;&#xa;        updateMyWordCount();&#xd;&#xa;    }&#xd;&#xa;&#xd;&#xa;    @Override&#xd;&#xa;    public void changedUpdate(javax.swing.event.DocumentEvent e) {&#xd;&#xa;        updateMyWordCount();&#xd;&#xa;    }&#xd;&#xa;});&#xd;&#xa;"/>
+            <AuxValue name="JavaCodeGenerator_InitCodePost" type="java.lang.String" value="jtpWordSpace.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {&#xd;&#xa;    @Override&#xd;&#xa;    public void insertUpdate(javax.swing.event.DocumentEvent e) {&#xd;&#xa;        updateMyWordCount();&#xd;&#xa;    }&#xd;&#xa;&#xd;&#xa;    @Override&#xd;&#xa;    public void removeUpdate(javax.swing.event.DocumentEvent e) {&#xd;&#xa;        updateMyWordCount();&#xd;&#xa;    }&#xd;&#xa;&#xd;&#xa;    @Override&#xd;&#xa;    public void changedUpdate(javax.swing.event.DocumentEvent e) {&#xd;&#xa;        updateMyWordCount();&#xd;&#xa;    }&#xd;&#xa;});&#xd;&#xa;"/>
           </AuxValues>
         </Component>
       </SubComponents>
