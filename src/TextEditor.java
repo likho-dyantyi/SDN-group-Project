@@ -46,6 +46,7 @@ public class TextEditor extends javax.swing.JFrame {
     private File currentFile = null;
     private int findIndex = 0;
     private Timer debouncer;
+    private boolean isHighlighting = false;
 
     // Simple Java keywords list for highlighting
     private static final String[] JAVA_KEYWORDS = new String[]{
@@ -329,25 +330,29 @@ public class TextEditor extends javax.swing.JFrame {
     //syntax
     private void initSyntaxHighlighting() {
         jtpWordSpace.getDocument().addDocumentListener(new DocumentListener() {
-            private void runLater() {
+            private void triggerHighlight() {
+                // If we are already highlighting, break the loop!
+                if (isHighlighting) {
+                    return;
+                }
+
                 SwingUtilities.invokeLater(() -> applyHighlighting());
             }
 
             @Override
             public void insertUpdate(DocumentEvent e) {
-                runLater();
+                triggerHighlight();
                 debouncer.restart();
             }
 
             @Override
             public void removeUpdate(DocumentEvent e) {
-                runLater();
+                triggerHighlight();
                 debouncer.restart();
             }
 
             @Override
             public void changedUpdate(DocumentEvent e) {
-                runLater();
                 debouncer.restart();
             }
         });
@@ -370,47 +375,56 @@ public class TextEditor extends javax.swing.JFrame {
         //Highlighter highlighter = jtpWordSpace.getHighlighter();
         //highlighter.removeAllHighlights();
 
-        /*    StyledDocument doc = jtpWordSpace.getStyledDocument();
-    int length = doc.getLength();
-    if (length == 0) return;
-
-    // Styles
-    SimpleAttributeSet keywordColor = new SimpleAttributeSet();
-    StyleConstants.setForeground(keywordColor, Color.BLUE);
-    SimpleAttributeSet defaultColor = new SimpleAttributeSet();
-    StyleConstants.setForeground(defaultColor, Color.BLACK);
-
-    // Get the user's cursor position
-    int caretPos = jtpWordSpace.getCaretPosition();
-
-    try {
-        // Find the start and end of the CURRENT line only
-        Element root = doc.getDefaultRootElement();
-        int lineIndex = root.getElementIndex(caretPos);
-        Element lineElement = root.getElement(lineIndex);
-        
-        int startOffset = lineElement.getStartOffset();
-        int endOffset = lineElement.getEndOffset();
-        int lineLength = endOffset - startOffset;
-
-        if (lineLength <= 0) return;
-
-        // 1. Reset color ONLY for this line
-        doc.setCharacterAttributes(startOffset, lineLength, defaultColor, true);
-
-        // 2. Scan and highlight ONLY this line
-        String lineText = doc.getText(startOffset, lineLength);
-        Matcher m = KEYWORD_PATTERN.matcher(lineText);
-        
-        while (m.find()) {
-            int matchStart = startOffset + m.start();
-            int matchLength = m.end() - m.start();
-            doc.setCharacterAttributes(matchStart, matchLength, keywordColor, false);
+        StyledDocument doc = jtpWordSpace.getStyledDocument();
+        int length = doc.getLength();
+        if (length == 0) {
+            return;
         }
-        
-    } catch (BadLocationException ex) {
-        logger.log(java.util.logging.Level.SEVERE, "Highlighting failed", ex);
-    }*/
+
+        // Styles
+        SimpleAttributeSet keywordColor = new SimpleAttributeSet();
+        StyleConstants.setForeground(keywordColor, Color.BLUE);
+        SimpleAttributeSet defaultColor = new SimpleAttributeSet();
+        StyleConstants.setForeground(defaultColor, Color.BLACK);
+
+        // Get the user's cursor position
+        int caretPos = jtpWordSpace.getCaretPosition();
+
+        try {
+            // Find the start and end of the CURRENT line only
+            Element root = doc.getDefaultRootElement();
+            int lineIndex = root.getElementIndex(caretPos);
+            Element lineElement = root.getElement(lineIndex);
+
+            int startOffset = lineElement.getStartOffset();
+            int endOffset = lineElement.getEndOffset();
+
+            if (endOffset > startOffset && doc.getText(endOffset - 1, 1).equals("\n")) {
+                endOffset--;
+            }
+
+            int lineLength = endOffset - startOffset;
+
+            if (lineLength <= 0) {
+                return;
+            }
+
+            // 1. Reset color ONLY for this line
+            doc.setCharacterAttributes(startOffset, lineLength, defaultColor, false);
+
+            // 2. Scan and highlight ONLY this line
+            String lineText = doc.getText(startOffset, lineLength);
+            Matcher m = KEYWORD_PATTERN.matcher(lineText);
+
+            while (m.find()) {
+                int matchStart = startOffset + m.start();
+                int matchLength = m.end() - m.start();
+                doc.setCharacterAttributes(matchStart, matchLength, keywordColor, false);
+            }
+
+        } catch (BadLocationException ex) {
+            logger.log(java.util.logging.Level.SEVERE, "Highlighting failed", ex);
+        }
     }
 
     public int getCaretLineNumber(JTextPane textPane) {
@@ -464,9 +478,9 @@ public class TextEditor extends javax.swing.JFrame {
             // 3. Apply the highlight if positions are valid (Diagnostic.NOPOS means no position info)
             if (startPos != Diagnostic.NOPOS && endPos != Diagnostic.NOPOS) {
                 try {
-                    int lineNumber = getCaretLineNumber(jtpWordSpace);
+                    int offset = getCaretLineNumber(jtpWordSpace);
                     // Cast to int since Swing components use 32-bit integer offsets
-                    highlighter.addHighlight((int) startPos - lineNumber, (int) endPos - lineNumber, errorPainter);
+                    highlighter.addHighlight((int) startPos - offset-1, (int) endPos - offset, errorPainter);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
