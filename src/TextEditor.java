@@ -63,7 +63,7 @@ public class TextEditor extends javax.swing.JFrame {
         initSyntaxHighlighting();
         setTitle("Group 5 Text Editor");
         setLocationRelativeTo(null);
-        debouncer = new Timer(400, e -> validateSyntax(jtpWordSpace.getText()));
+        debouncer = new Timer(400, e -> validateSyntax());
         debouncer.setRepeats(false);
 
     }
@@ -101,23 +101,6 @@ public class TextEditor extends javax.swing.JFrame {
         jlblWords.setFont(new java.awt.Font("Leelawadee UI", 1, 14)); // NOI18N
         jlblWords.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
         jlblWords.setVerticalAlignment(javax.swing.SwingConstants.BOTTOM);
-
-        jtpWordSpace.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
-            @Override
-            public void insertUpdate(javax.swing.event.DocumentEvent e) {
-                updateMyWordCount();
-            }
-
-            @Override
-            public void removeUpdate(javax.swing.event.DocumentEvent e) {
-                updateMyWordCount();
-            }
-
-            @Override
-            public void changedUpdate(javax.swing.event.DocumentEvent e) {
-                updateMyWordCount();
-            }
-        });
 
         jScrollPane2.setViewportView(jtpWordSpace);
 
@@ -341,12 +324,14 @@ public class TextEditor extends javax.swing.JFrame {
 
             @Override
             public void insertUpdate(DocumentEvent e) {
+                updateMyWordCount();
                 triggerHighlight();
                 debouncer.restart();
             }
 
             @Override
             public void removeUpdate(DocumentEvent e) {
+                updateMyWordCount();
                 triggerHighlight();
                 debouncer.restart();
             }
@@ -438,7 +423,22 @@ public class TextEditor extends javax.swing.JFrame {
         return rootElement.getElementIndex(caretPosition);
     }
 
-    public void validateSyntax(String sourceCode) {
+    public void validateSyntax() {
+        StyledDocument doc = jtpWordSpace.getStyledDocument();
+        int docLength = doc.getLength();
+        if (docLength == 0) {
+            return;
+        }
+
+        String normalizedSource;
+        try {
+            // 2. FORCE a single '\n' per line break by extracting directly from the document model
+            normalizedSource = doc.getText(0, docLength);
+        } catch (BadLocationException e) {
+            e.printStackTrace();
+            return;
+        }
+
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         if (compiler == null) {
             System.out.println("JDK is required to run the compiler API.");
@@ -453,7 +453,7 @@ public class TextEditor extends javax.swing.JFrame {
                 java.net.URI.create("string:///SimpleClass.java"), JavaFileObject.Kind.SOURCE) {
             @Override
             public CharSequence getCharContent(boolean ignoreEncodingErrors) {
-                return sourceCode;
+                return normalizedSource;
             }
         };
 
@@ -476,11 +476,20 @@ public class TextEditor extends javax.swing.JFrame {
             long endPos = diagnostic.getEndPosition();
 
             // 3. Apply the highlight if positions are valid (Diagnostic.NOPOS means no position info)
-            if (startPos != Diagnostic.NOPOS && endPos != Diagnostic.NOPOS) {
+            if (startPos != Diagnostic.NOPOS) {
                 try {
-                    int offset = getCaretLineNumber(jtpWordSpace);
-                    // Cast to int since Swing components use 32-bit integer offsets
-                    highlighter.addHighlight((int) startPos - offset-1, (int) endPos - offset, errorPainter);
+                    // Fallback: If endPos is invalid, highlight 1 character wide
+                    if (endPos == Diagnostic.NOPOS || endPos <= startPos) {
+                        endPos = startPos + 1;
+                    }
+
+                    // Bound-check against the actual current document length to prevent crashes
+                    int start = Math.min((int) startPos, docLength);
+                    int end = Math.min((int) endPos, docLength);
+
+                    if (start < end) {
+                        highlighter.addHighlight(start, end, errorPainter);
+                    }
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
