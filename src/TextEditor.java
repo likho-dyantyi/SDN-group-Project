@@ -18,6 +18,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.JTextPane;
 import javax.swing.SwingUtilities;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -369,7 +370,7 @@ public class TextEditor extends javax.swing.JFrame {
         //Highlighter highlighter = jtpWordSpace.getHighlighter();
         //highlighter.removeAllHighlights();
 
-        StyledDocument doc = jtpWordSpace.getStyledDocument();
+        /*    StyledDocument doc = jtpWordSpace.getStyledDocument();
     int length = doc.getLength();
     if (length == 0) return;
 
@@ -409,11 +410,22 @@ public class TextEditor extends javax.swing.JFrame {
         
     } catch (BadLocationException ex) {
         logger.log(java.util.logging.Level.SEVERE, "Highlighting failed", ex);
+    }*/
     }
+
+    public int getCaretLineNumber(JTextPane textPane) {
+        // 1. Get the current character position of the cursor
+        int caretPosition = textPane.getCaretPosition();
+
+        // 2. Access the root structural element of the document
+        Element rootElement = textPane.getDocument().getDefaultRootElement();
+
+        // 3. Get the line index matching the cursor position
+        return rootElement.getElementIndex(caretPosition);
     }
 
     public void validateSyntax(String sourceCode) {
-        /*JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         if (compiler == null) {
             System.out.println("JDK is required to run the compiler API.");
             return;
@@ -440,6 +452,7 @@ public class TextEditor extends javax.swing.JFrame {
 
         Highlighter.HighlightPainter errorPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.PINK);
         Highlighter highlighter = jtpWordSpace.getHighlighter();
+        highlighter.removeAllHighlights();
 
         // Read through the generated errors
         for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
@@ -451,13 +464,14 @@ public class TextEditor extends javax.swing.JFrame {
             // 3. Apply the highlight if positions are valid (Diagnostic.NOPOS means no position info)
             if (startPos != Diagnostic.NOPOS && endPos != Diagnostic.NOPOS) {
                 try {
+                    int lineNumber = getCaretLineNumber(jtpWordSpace);
                     // Cast to int since Swing components use 32-bit integer offsets
-                    highlighter.addHighlight((int) startPos - 1, (int) endPos + 1, errorPainter);
+                    highlighter.addHighlight((int) startPos - lineNumber, (int) endPos - lineNumber, errorPainter);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
-        }*/
+        }
 
     }
 
