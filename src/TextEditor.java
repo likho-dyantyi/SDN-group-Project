@@ -1,3 +1,4 @@
+
 import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
@@ -24,6 +25,14 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultHighlighter;
 import javax.swing.text.Highlighter;
+import javax.swing.text.Document;
+import javax.swing.text.SimpleAttributeSet;
+import javax.swing.text.StyleConstants;
+import javax.swing.text.StyledDocument;
+import javax.swing.text.Element;
+import javax.swing.Timer;
+import javax.tools.*;
+import java.util.Arrays;
 
 /**
  *
@@ -35,23 +44,26 @@ public class TextEditor extends javax.swing.JFrame {
 
     private File currentFile = null;
     private int findIndex = 0;
+    private Timer debouncer;
 
     // Simple Java keywords list for highlighting
     private static final String[] JAVA_KEYWORDS = new String[]{
-        "abstract","assert","boolean","break","byte","case","catch","char","class","const",
-        "continue","default","do","double","else","enum","extends","final","finally","float",
-        "for","goto","if","implements","import","instanceof","int","interface","long","native",
-        "new","package","private","protected","public","return","short","static","strictfp",
-        "super","switch","synchronized","this","throw","throws","transient","try","void",
-        "volatile","while","true","false","null"
+        "abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class", "const",
+        "continue", "default", "do", "double", "else", "enum", "extends", "final", "finally", "float",
+        "for", "goto", "if", "implements", "import", "instanceof", "int", "interface", "long", "native",
+        "new", "package", "private", "protected", "public", "return", "short", "static", "strictfp",
+        "super", "switch", "synchronized", "this", "throw", "throws", "transient", "try", "void",
+        "volatile", "while", "true", "false", "null"
     };
 
-    
     public TextEditor() {
         initComponents();
         initSyntaxHighlighting();
         setTitle("Group 5 Text Editor");
         setLocationRelativeTo(null);
+        debouncer = new Timer(400, e -> validateSyntax(jtpWordSpace.getText()));
+        debouncer.setRepeats(false);
+
     }
 
     /**
@@ -65,9 +77,9 @@ public class TextEditor extends javax.swing.JFrame {
 
         jMenu1 = new javax.swing.JMenu();
         jMenu2 = new javax.swing.JMenu();
-        jScrollPane1 = new javax.swing.JScrollPane();
-        jtpWordSpace = new javax.swing.JTextPane();
         jlblWords = new javax.swing.JLabel();
+        jScrollPane2 = new javax.swing.JScrollPane();
+        jtpWordSpace = new javax.swing.JTextPane();
         jMenuBar1 = new javax.swing.JMenuBar();
         jMenu3 = new javax.swing.JMenu();
         jMenuItem1 = new javax.swing.JMenuItem();
@@ -83,6 +95,10 @@ public class TextEditor extends javax.swing.JFrame {
         jMenu2.setText("jMenu2");
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+
+        jlblWords.setFont(new java.awt.Font("Leelawadee UI", 1, 14)); // NOI18N
+        jlblWords.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        jlblWords.setVerticalAlignment(javax.swing.SwingConstants.BOTTOM);
 
         jtpWordSpace.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             @Override
@@ -100,11 +116,8 @@ public class TextEditor extends javax.swing.JFrame {
                 updateMyWordCount();
             }
         });
-        jScrollPane1.setViewportView(jtpWordSpace);
 
-        jlblWords.setFont(new java.awt.Font("Leelawadee UI", 1, 14)); // NOI18N
-        jlblWords.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
-        jlblWords.setVerticalAlignment(javax.swing.SwingConstants.BOTTOM);
+        jScrollPane2.setViewportView(jtpWordSpace);
 
         jMenu3.setText("File");
 
@@ -144,15 +157,15 @@ public class TextEditor extends javax.swing.JFrame {
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 499, Short.MAX_VALUE)
-            .addComponent(jlblWords, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(jlblWords, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 500, Short.MAX_VALUE)
+            .addComponent(jScrollPane2)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 419, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 400, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jlblWords, javax.swing.GroupLayout.DEFAULT_SIZE, 26, Short.MAX_VALUE)
+                .addComponent(jlblWords, javax.swing.GroupLayout.DEFAULT_SIZE, 45, Short.MAX_VALUE)
                 .addContainerGap())
         );
 
@@ -231,9 +244,9 @@ public class TextEditor extends javax.swing.JFrame {
         String text = jtpWordSpace.getText();
         String trimmed = text.trim();
         int totalWords = trimmed.isEmpty() ? 0 : trimmed.split("\\s+").length;
-        jlblWords.setText("Word count: "+totalWords);
+        jlblWords.setText("Word count: " + totalWords);
     }
-    
+
     //find and replace
     private void openFindReplaceDialog(ActionEvent evt) {
         JDialog dialog = new JDialog(this, "Find and Replace", false);
@@ -311,7 +324,7 @@ public class TextEditor extends javax.swing.JFrame {
         dialog.add(controlPanel);
         dialog.setVisible(true);
     }
-    
+
     //syntax
     private void initSyntaxHighlighting() {
         jtpWordSpace.getDocument().addDocumentListener(new DocumentListener() {
@@ -320,48 +333,134 @@ public class TextEditor extends javax.swing.JFrame {
             }
 
             @Override
-            public void insertUpdate(DocumentEvent e) { runLater(); }
+            public void insertUpdate(DocumentEvent e) {
+                runLater();
+                debouncer.restart();
+            }
 
             @Override
-            public void removeUpdate(DocumentEvent e) { runLater(); }
+            public void removeUpdate(DocumentEvent e) {
+                runLater();
+                debouncer.restart();
+            }
 
             @Override
-            public void changedUpdate(DocumentEvent e) { runLater(); }
+            public void changedUpdate(DocumentEvent e) {
+                runLater();
+                debouncer.restart();
+            }
         });
     }
 
-    private void applyHighlighting() {
-        Highlighter highlighter = jtpWordSpace.getHighlighter();
-        highlighter.removeAllHighlights();
+    private static final Pattern KEYWORD_PATTERN;
 
-        String text = jtpWordSpace.getText();
-        if (text == null || text.isEmpty()) {
+    static {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < JAVA_KEYWORDS.length; i++) {
+            if (i > 0) {
+                sb.append("|");
+            }
+            sb.append(Pattern.quote(JAVA_KEYWORDS[i]));
+        }
+        KEYWORD_PATTERN = Pattern.compile("\\b(" + sb.toString() + ")\\b");
+    }
+
+    private void applyHighlighting() {
+        //Highlighter highlighter = jtpWordSpace.getHighlighter();
+        //highlighter.removeAllHighlights();
+
+        StyledDocument doc = jtpWordSpace.getStyledDocument();
+    int length = doc.getLength();
+    if (length == 0) return;
+
+    // Styles
+    SimpleAttributeSet keywordColor = new SimpleAttributeSet();
+    StyleConstants.setForeground(keywordColor, Color.BLUE);
+    SimpleAttributeSet defaultColor = new SimpleAttributeSet();
+    StyleConstants.setForeground(defaultColor, Color.BLACK);
+
+    // Get the user's cursor position
+    int caretPos = jtpWordSpace.getCaretPosition();
+
+    try {
+        // Find the start and end of the CURRENT line only
+        Element root = doc.getDefaultRootElement();
+        int lineIndex = root.getElementIndex(caretPos);
+        Element lineElement = root.getElement(lineIndex);
+        
+        int startOffset = lineElement.getStartOffset();
+        int endOffset = lineElement.getEndOffset();
+        int lineLength = endOffset - startOffset;
+
+        if (lineLength <= 0) return;
+
+        // 1. Reset color ONLY for this line
+        doc.setCharacterAttributes(startOffset, lineLength, defaultColor, true);
+
+        // 2. Scan and highlight ONLY this line
+        String lineText = doc.getText(startOffset, lineLength);
+        Matcher m = KEYWORD_PATTERN.matcher(lineText);
+        
+        while (m.find()) {
+            int matchStart = startOffset + m.start();
+            int matchLength = m.end() - m.start();
+            doc.setCharacterAttributes(matchStart, matchLength, keywordColor, false);
+        }
+        
+    } catch (BadLocationException ex) {
+        logger.log(java.util.logging.Level.SEVERE, "Highlighting failed", ex);
+    }
+    }
+
+    public void validateSyntax(String sourceCode) {
+        /*JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        if (compiler == null) {
+            System.out.println("JDK is required to run the compiler API.");
             return;
         }
 
-        // Highlight keyword painter (Blue background or custom painter)
-        Highlighter.HighlightPainter keywordPainter = new DefaultHighlighter.DefaultHighlightPainter(new Color(220, 230, 255));
+        DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
+        StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null);
 
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < JAVA_KEYWORDS.length; i++) {
-            if (i > 0) sb.append("|");
-            sb.append(Pattern.quote(JAVA_KEYWORDS[i]));
-        }
-
-        try {
-            Pattern p = Pattern.compile("\\b(" + sb.toString() + ")\\b");
-            Matcher m = p.matcher(text);
-            while (m.find()) {
-                highlighter.addHighlight(m.start(), m.end(), keywordPainter);
+        // Create a virtual file object out of the string content
+        JavaFileObject file = new SimpleJavaFileObject(
+                java.net.URI.create("string:///SimpleClass.java"), JavaFileObject.Kind.SOURCE) {
+            @Override
+            public CharSequence getCharContent(boolean ignoreEncodingErrors) {
+                return sourceCode;
             }
-        } catch (BadLocationException ex) {
-            logger.log(java.util.logging.Level.SEVERE, null, ex);
-        }
+        };
+
+        // Configure the compilation task (Parse only, don't generate bytecode)
+        JavaCompiler.CompilationTask task = compiler.getTask(
+                null, fileManager, diagnostics, Arrays.asList("-proc:none"), null, Arrays.asList(file));
+
+        // Run the validation
+        task.call();
+
+        Highlighter.HighlightPainter errorPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.PINK);
+        Highlighter highlighter = jtpWordSpace.getHighlighter();
+
+        // Read through the generated errors
+        for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
+            System.out.format("Error on line %d: %s%n", diagnostic.getLineNumber(), diagnostic.getMessage(null));
+
+            long startPos = diagnostic.getStartPosition();
+            long endPos = diagnostic.getEndPosition();
+
+            // 3. Apply the highlight if positions are valid (Diagnostic.NOPOS means no position info)
+            if (startPos != Diagnostic.NOPOS && endPos != Diagnostic.NOPOS) {
+                try {
+                    // Cast to int since Swing components use 32-bit integer offsets
+                    highlighter.addHighlight((int) startPos - 1, (int) endPos + 1, errorPainter);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }*/
+
     }
 
-    
-    
-    
     /**
      * @param args the command line arguments
      */
@@ -379,9 +478,6 @@ public class TextEditor extends javax.swing.JFrame {
 
         java.awt.EventQueue.invokeLater(() -> new TextEditor().setVisible(true));
     }
-    
-    
-
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
@@ -396,7 +492,7 @@ public class TextEditor extends javax.swing.JFrame {
     private javax.swing.JMenuItem jMenuItem4;
     private javax.swing.JMenuItem jMenuItem5;
     private javax.swing.JMenuItem jMenuItem6;
-    private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JLabel jlblWords;
     private javax.swing.JTextPane jtpWordSpace;
     // End of variables declaration//GEN-END:variables
