@@ -1,4 +1,4 @@
-
+import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
@@ -8,15 +8,22 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
-import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.DefaultHighlighter;
+import javax.swing.text.Highlighter;
 
 /**
  *
@@ -29,8 +36,20 @@ public class TextEditor extends javax.swing.JFrame {
     private File currentFile = null;
     private int findIndex = 0;
 
+    // Simple Java keywords list for highlighting
+    private static final String[] JAVA_KEYWORDS = new String[]{
+        "abstract","assert","boolean","break","byte","case","catch","char","class","const",
+        "continue","default","do","double","else","enum","extends","final","finally","float",
+        "for","goto","if","implements","import","instanceof","int","interface","long","native",
+        "new","package","private","protected","public","return","short","static","strictfp",
+        "super","switch","synchronized","this","throw","throws","transient","try","void",
+        "volatile","while","true","false","null"
+    };
+
+    
     public TextEditor() {
         initComponents();
+        initSyntaxHighlighting();
         setTitle("Group 5 Text Editor");
         setLocationRelativeTo(null);
     }
@@ -85,7 +104,7 @@ public class TextEditor extends javax.swing.JFrame {
         });
         jScrollPane1.setViewportView(jTextArea1);
 
-        jlblWords.setFont(new java.awt.Font("Times New Roman", 2, 14)); // NOI18N
+        jlblWords.setFont(new java.awt.Font("Leelawadee UI", 1, 14)); // NOI18N
         jlblWords.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
         jlblWords.setVerticalAlignment(javax.swing.SwingConstants.BOTTOM);
 
@@ -294,7 +313,57 @@ public class TextEditor extends javax.swing.JFrame {
         dialog.add(controlPanel);
         dialog.setVisible(true);
     }
+    
+    //syntax
+    private void initSyntaxHighlighting() {
+        jTextArea1.getDocument().addDocumentListener(new DocumentListener() {
+            private void runLater() {
+                SwingUtilities.invokeLater(() -> applyHighlighting());
+            }
 
+            @Override
+            public void insertUpdate(DocumentEvent e) { runLater(); }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) { runLater(); }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) { runLater(); }
+        });
+    }
+
+    private void applyHighlighting() {
+        Highlighter highlighter = jTextArea1.getHighlighter();
+        highlighter.removeAllHighlights();
+
+        String text = jTextArea1.getText();
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+
+        // Highlight keyword painter (Blue background or custom painter)
+        Highlighter.HighlightPainter keywordPainter = new DefaultHighlighter.DefaultHighlightPainter(new Color(220, 230, 255));
+
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < JAVA_KEYWORDS.length; i++) {
+            if (i > 0) sb.append("|");
+            sb.append(Pattern.quote(JAVA_KEYWORDS[i]));
+        }
+
+        try {
+            Pattern p = Pattern.compile("\\b(" + sb.toString() + ")\\b");
+            Matcher m = p.matcher(text);
+            while (m.find()) {
+                highlighter.addHighlight(m.start(), m.end(), keywordPainter);
+            }
+        } catch (BadLocationException ex) {
+            logger.log(java.util.logging.Level.SEVERE, null, ex);
+        }
+    }
+
+    
+    
+    
     /**
      * @param args the command line arguments
      */
@@ -312,6 +381,10 @@ public class TextEditor extends javax.swing.JFrame {
 
         java.awt.EventQueue.invokeLater(() -> new TextEditor().setVisible(true));
     }
+    
+    
+
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JMenu jMenu1;
