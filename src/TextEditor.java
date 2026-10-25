@@ -321,23 +321,41 @@ public class TextEditor extends javax.swing.JFrame {
                 SwingUtilities.invokeLater(() -> applyHighlighting());
             }
 
+            private void handleTextChange() {
+                SwingUtilities.invokeLater(() -> {
+                    String text = jtpWordSpace.getText().trim();
+                    if (text.isEmpty()) {
+                        debouncer.stop();
+                        return;
+                    }
+
+                    String firstWord = text.split("\\s+")[0];
+
+                    Matcher matcher = KEYWORD_PATTERN.matcher(firstWord);
+                    if (matcher.matches()) {
+                        debouncer.restart();
+                        triggerHighlight();
+                    } else {
+                        debouncer.stop();
+                    }
+                });
+            }
+
             @Override
             public void insertUpdate(DocumentEvent e) {
                 updateMyWordCount();
-                triggerHighlight();
-                debouncer.restart();
+                handleTextChange();
             }
 
             @Override
             public void removeUpdate(DocumentEvent e) {
                 updateMyWordCount();
-                triggerHighlight();
-                debouncer.restart();
+                handleTextChange();
             }
 
             @Override
             public void changedUpdate(DocumentEvent e) {
-                debouncer.restart();
+
             }
         });
     }
@@ -388,6 +406,7 @@ public class TextEditor extends javax.swing.JFrame {
             int lineLength = endOffset - startOffset;
 
             if (lineLength <= 0) {
+                doc.setCharacterAttributes(startOffset, lineLength, defaultColor, false);
                 return;
             }
 
@@ -401,6 +420,7 @@ public class TextEditor extends javax.swing.JFrame {
                 int matchLength = m.end() - m.start();
                 doc.setCharacterAttributes(matchStart, matchLength, keywordColor, false);
             }
+            jtpWordSpace.setCharacterAttributes(defaultColor, true);
 
         } catch (BadLocationException ex) {
             logger.log(java.util.logging.Level.SEVERE, "Highlighting failed", ex);
@@ -440,7 +460,7 @@ public class TextEditor extends javax.swing.JFrame {
         //initialize diagnostic collector and create standard java fileManager
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
         StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null);
-        
+
         //create java file object and feed text to the compiler
         JavaFileObject file = new SimpleJavaFileObject(
                 java.net.URI.create("string:///SimpleClass.java"), JavaFileObject.Kind.SOURCE) {
@@ -452,7 +472,7 @@ public class TextEditor extends javax.swing.JFrame {
         //configure compilation task for parsing only
         JavaCompiler.CompilationTask task = compiler.getTask(
                 null, fileManager, diagnostics, Arrays.asList("-proc:none"), null, Arrays.asList(file));
-        
+
         //compile
         task.call();
 
