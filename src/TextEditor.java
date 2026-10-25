@@ -314,7 +314,6 @@ public class TextEditor extends javax.swing.JFrame {
     private void initSyntaxHighlighting() {
         jtpWordSpace.getDocument().addDocumentListener(new DocumentListener() {
             private void triggerHighlight() {
-                // If we are already highlighting, break the loop!
                 if (isHighlighting) {
                     return;
                 }
@@ -372,11 +371,9 @@ public class TextEditor extends javax.swing.JFrame {
         SimpleAttributeSet defaultColor = new SimpleAttributeSet();
         StyleConstants.setForeground(defaultColor, Color.BLACK);
 
-        // Get the user's cursor position
         int caretPos = jtpWordSpace.getCaretPosition();
 
         try {
-            // Find the start and end of the CURRENT line only
             Element root = doc.getDefaultRootElement();
             int lineIndex = root.getElementIndex(caretPos);
             Element lineElement = root.getElement(lineIndex);
@@ -394,10 +391,8 @@ public class TextEditor extends javax.swing.JFrame {
                 return;
             }
 
-            // 1. Reset color ONLY for this line
             doc.setCharacterAttributes(startOffset, lineLength, defaultColor, false);
 
-            // 2. Scan and highlight ONLY this line
             String lineText = doc.getText(startOffset, lineLength);
             Matcher m = KEYWORD_PATTERN.matcher(lineText);
 
@@ -413,42 +408,40 @@ public class TextEditor extends javax.swing.JFrame {
     }
 
     public int getCaretLineNumber(JTextPane textPane) {
-        // 1. Get the current character position of the cursor
         int caretPosition = textPane.getCaretPosition();
 
-        // 2. Access the root structural element of the document
         Element rootElement = textPane.getDocument().getDefaultRootElement();
 
-        // 3. Get the line index matching the cursor position
         return rootElement.getElementIndex(caretPosition);
     }
 
     public void validateSyntax() {
         StyledDocument doc = jtpWordSpace.getStyledDocument();
+        //check document length
         int docLength = doc.getLength();
         if (docLength == 0) {
             return;
         }
 
         String normalizedSource;
+        //Safely retrieve text from document
         try {
-            // 2. FORCE a single '\n' per line break by extracting directly from the document model
             normalizedSource = doc.getText(0, docLength);
         } catch (BadLocationException e) {
             e.printStackTrace();
             return;
         }
-
+        //check if java compiler is available
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         if (compiler == null) {
             System.out.println("JDK is required to run the compiler API.");
             return;
         }
-
+        //initialize diagnostic collector and create standard java fileManager
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
         StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null);
-
-        // Create a virtual file object out of the string content
+        
+        //create java file object and feed text to the compiler
         JavaFileObject file = new SimpleJavaFileObject(
                 java.net.URI.create("string:///SimpleClass.java"), JavaFileObject.Kind.SOURCE) {
             @Override
@@ -456,34 +449,34 @@ public class TextEditor extends javax.swing.JFrame {
                 return normalizedSource;
             }
         };
-
-        // Configure the compilation task (Parse only, don't generate bytecode)
+        //configure compilation task for parsing only
         JavaCompiler.CompilationTask task = compiler.getTask(
                 null, fileManager, diagnostics, Arrays.asList("-proc:none"), null, Arrays.asList(file));
-
-        // Run the validation
+        
+        //compile
         task.call();
 
+        //create higlighter and remove previus highlights
         Highlighter.HighlightPainter errorPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.PINK);
         Highlighter highlighter = jtpWordSpace.getHighlighter();
         highlighter.removeAllHighlights();
 
-        // Read through the generated errors
+        //for each loops running through the diagnistic collector
         for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
+            //The next line prints the error on the ouput. This part is just for me to see the error catching
+            //it likely won't make it into the final project
             System.out.format("Error on line %d: %s%n", diagnostic.getLineNumber(), diagnostic.getMessage(null));
 
+            //find start and end point of the error and add highlight between those points 
             long startPos = diagnostic.getStartPosition();
             long endPos = diagnostic.getEndPosition();
 
-            // 3. Apply the highlight if positions are valid (Diagnostic.NOPOS means no position info)
             if (startPos != Diagnostic.NOPOS) {
                 try {
-                    // Fallback: If endPos is invalid, highlight 1 character wide
                     if (endPos == Diagnostic.NOPOS || endPos <= startPos) {
                         endPos = startPos + 1;
                     }
 
-                    // Bound-check against the actual current document length to prevent crashes
                     int start = Math.min((int) startPos, docLength);
                     int end = Math.min((int) endPos, docLength);
 
