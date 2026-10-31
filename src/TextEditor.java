@@ -1,4 +1,3 @@
-
 import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
@@ -35,6 +34,7 @@ import javax.swing.Timer;
 import javax.tools.*;
 import java.util.Arrays;
 
+
 /**
  *
  * @author cm coolmaster
@@ -48,7 +48,7 @@ public class TextEditor extends javax.swing.JFrame {
     private Timer debouncer;
     private boolean isHighlighting = false;
 
-    // Simple Java keywords list for highlighting
+    //highlighting
     private static final String[] JAVA_KEYWORDS = new String[]{
         "abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class", "const",
         "continue", "default", "do", "double", "else", "enum", "extends", "final", "finally", "float",
@@ -65,8 +65,23 @@ public class TextEditor extends javax.swing.JFrame {
         setLocationRelativeTo(null);
         debouncer = new Timer(400, e -> validateSyntax());
         debouncer.setRepeats(false);
+        
+        //format
+        getContentPane().setLayout(new java.awt.BorderLayout());
+        setupToolbarAndFormatting();
+        getContentPane().add(jScrollPane2, java.awt.BorderLayout.CENTER);
+        getContentPane().add(jlblWords, java.awt.BorderLayout.SOUTH);
+        revalidate();
+        repaint();
 
     }
+    
+    private javax.swing.JToolBar jToolBar1;
+    private javax.swing.JToggleButton btnBold;
+    private javax.swing.JSpinner spnFontSize;
+    private javax.swing.JButton btnAlignLeft;
+    private javax.swing.JButton btnAlignCenter;
+    private javax.swing.JButton btnAlignRight;
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -148,9 +163,9 @@ public class TextEditor extends javax.swing.JFrame {
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 400, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 427, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jlblWords, javax.swing.GroupLayout.DEFAULT_SIZE, 45, Short.MAX_VALUE)
+                .addComponent(jlblWords, javax.swing.GroupLayout.DEFAULT_SIZE, 27, Short.MAX_VALUE)
                 .addContainerGap())
         );
 
@@ -239,7 +254,7 @@ public class TextEditor extends javax.swing.JFrame {
         dialog.setLocationRelativeTo(this);
         dialog.setLayout(new GridLayout(6, 6, 6, 6));
 
-        // Panel 1: Find Field
+        //Find Field
         JPanel findPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JLabel findLabel = new JLabel("Find:       ");
         JTextField findField = new JTextField(15);
@@ -248,7 +263,7 @@ public class TextEditor extends javax.swing.JFrame {
         findPanel.add(findField);
         findPanel.add(findButton);
 
-        // Panel 2: Replace Field
+        //Replace Field
         JPanel replacePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JLabel replaceLabel = new JLabel("Replace:");
         JTextField replaceField = new JTextField(15);
@@ -257,12 +272,12 @@ public class TextEditor extends javax.swing.JFrame {
         replacePanel.add(replaceField);
         replacePanel.add(replaceButton);
 
-        // Panel 3: Replace 
+        //Replace 
         JPanel controlPanel = new JPanel();
         JButton replaceAllButton = new JButton("Replace All");
         controlPanel.add(replaceAllButton);
 
-        // Find Logic
+        //Find Logic
         findButton.addActionListener(e -> {
             String textToFind = findField.getText();
             String content = jtpWordSpace.getText();
@@ -314,7 +329,7 @@ public class TextEditor extends javax.swing.JFrame {
     private void initSyntaxHighlighting() {
         jtpWordSpace.getDocument().addDocumentListener(new DocumentListener() {
             private void triggerHighlight() {
-                // If we are already highlighting, break the loop!
+             
                 if (isHighlighting) {
                     return;
                 }
@@ -357,8 +372,7 @@ public class TextEditor extends javax.swing.JFrame {
     }
 
     private void applyHighlighting() {
-        //Highlighter highlighter = jtpWordSpace.getHighlighter();
-        //highlighter.removeAllHighlights();
+
 
         StyledDocument doc = jtpWordSpace.getStyledDocument();
         int length = doc.getLength();
@@ -366,17 +380,14 @@ public class TextEditor extends javax.swing.JFrame {
             return;
         }
 
-        // Styles
         SimpleAttributeSet keywordColor = new SimpleAttributeSet();
         StyleConstants.setForeground(keywordColor, Color.BLUE);
         SimpleAttributeSet defaultColor = new SimpleAttributeSet();
         StyleConstants.setForeground(defaultColor, Color.BLACK);
 
-        // Get the user's cursor position
         int caretPos = jtpWordSpace.getCaretPosition();
 
         try {
-            // Find the start and end of the CURRENT line only
             Element root = doc.getDefaultRootElement();
             int lineIndex = root.getElementIndex(caretPos);
             Element lineElement = root.getElement(lineIndex);
@@ -394,10 +405,9 @@ public class TextEditor extends javax.swing.JFrame {
                 return;
             }
 
-            // 1. Reset color ONLY for this line
+            
             doc.setCharacterAttributes(startOffset, lineLength, defaultColor, false);
 
-            // 2. Scan and highlight ONLY this line
             String lineText = doc.getText(startOffset, lineLength);
             Matcher m = KEYWORD_PATTERN.matcher(lineText);
 
@@ -413,13 +423,8 @@ public class TextEditor extends javax.swing.JFrame {
     }
 
     public int getCaretLineNumber(JTextPane textPane) {
-        // 1. Get the current character position of the cursor
         int caretPosition = textPane.getCaretPosition();
-
-        // 2. Access the root structural element of the document
         Element rootElement = textPane.getDocument().getDefaultRootElement();
-
-        // 3. Get the line index matching the cursor position
         return rootElement.getElementIndex(caretPosition);
     }
 
@@ -432,7 +437,6 @@ public class TextEditor extends javax.swing.JFrame {
 
         String normalizedSource;
         try {
-            // 2. FORCE a single '\n' per line break by extracting directly from the document model
             normalizedSource = doc.getText(0, docLength);
         } catch (BadLocationException e) {
             e.printStackTrace();
@@ -448,7 +452,6 @@ public class TextEditor extends javax.swing.JFrame {
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
         StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null);
 
-        // Create a virtual file object out of the string content
         JavaFileObject file = new SimpleJavaFileObject(
                 java.net.URI.create("string:///SimpleClass.java"), JavaFileObject.Kind.SOURCE) {
             @Override
@@ -457,33 +460,26 @@ public class TextEditor extends javax.swing.JFrame {
             }
         };
 
-        // Configure the compilation task (Parse only, don't generate bytecode)
         JavaCompiler.CompilationTask task = compiler.getTask(
                 null, fileManager, diagnostics, Arrays.asList("-proc:none"), null, Arrays.asList(file));
 
-        // Run the validation
         task.call();
 
         Highlighter.HighlightPainter errorPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.PINK);
         Highlighter highlighter = jtpWordSpace.getHighlighter();
         highlighter.removeAllHighlights();
 
-        // Read through the generated errors
         for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
             System.out.format("Error on line %d: %s%n", diagnostic.getLineNumber(), diagnostic.getMessage(null));
 
             long startPos = diagnostic.getStartPosition();
             long endPos = diagnostic.getEndPosition();
 
-            // 3. Apply the highlight if positions are valid (Diagnostic.NOPOS means no position info)
             if (startPos != Diagnostic.NOPOS) {
                 try {
-                    // Fallback: If endPos is invalid, highlight 1 character wide
                     if (endPos == Diagnostic.NOPOS || endPos <= startPos) {
                         endPos = startPos + 1;
                     }
-
-                    // Bound-check against the actual current document length to prevent crashes
                     int start = Math.min((int) startPos, docLength);
                     int end = Math.min((int) endPos, docLength);
 
@@ -497,6 +493,133 @@ public class TextEditor extends javax.swing.JFrame {
         }
 
     }
+    
+    private void setupToolbarAndFormatting() {
+    //Toolbar
+    jToolBar1 = new javax.swing.JToolBar();
+    jToolBar1.setFloatable(false);
+
+    //Bold  Button
+    btnBold = new javax.swing.JToggleButton("Bold");
+    btnBold.setBackground(java.awt.Color.WHITE);
+    btnBold.setForeground(java.awt.Color.BLACK);
+    btnBold.setFocusable(false);
+
+    //Font Size
+    javax.swing.SpinnerNumberModel sizeModel = new javax.swing.SpinnerNumberModel(12, 10, 20, 1);
+    spnFontSize = new javax.swing.JSpinner(sizeModel);
+    spnFontSize.setMaximumSize(new java.awt.Dimension(60, 30));
+
+    //Alignment Buttons
+    btnAlignLeft = new javax.swing.JButton("Left");
+    btnAlignLeft.setFocusable(false);
+    btnAlignCenter = new javax.swing.JButton("Center");
+    btnAlignCenter.setFocusable(false);
+    btnAlignRight = new javax.swing.JButton("Right");
+    btnAlignRight.setFocusable(false);
+
+    //controls toolbar
+    jToolBar1.add(btnBold);
+    jToolBar1.addSeparator();
+    jToolBar1.add(new javax.swing.JLabel(" Size: "));
+    jToolBar1.add(spnFontSize);
+    jToolBar1.addSeparator();
+    jToolBar1.add(btnAlignLeft);
+    jToolBar1.add(btnAlignCenter);
+    jToolBar1.add(btnAlignRight);
+
+    getContentPane().add(jToolBar1, java.awt.BorderLayout.NORTH);
+
+   
+
+ 
+    btnBold.addActionListener(new java.awt.event.ActionListener() {
+        @Override
+        public void actionPerformed(java.awt.event.ActionEvent e) {
+            boolean isBold = btnBold.isSelected();
+
+            if (isBold) {
+                btnBold.setBackground(java.awt.Color.BLACK);
+                btnBold.setForeground(java.awt.Color.WHITE);
+            } else {
+                btnBold.setBackground(java.awt.Color.WHITE);
+                btnBold.setForeground(java.awt.Color.BLACK);
+            }
+
+            javax.swing.text.SimpleAttributeSet attrs = new javax.swing.text.SimpleAttributeSet();
+            javax.swing.text.StyleConstants.setBold(attrs, isBold);
+            jtpWordSpace.setCharacterAttributes(attrs, false);
+
+            jtpWordSpace.requestFocusInWindow();
+        }
+    });
+
+    spnFontSize.addChangeListener(new javax.swing.event.ChangeListener() {
+        @Override
+        public void stateChanged(javax.swing.event.ChangeEvent e) {
+            int newSize = (Integer) spnFontSize.getValue();
+
+            javax.swing.text.SimpleAttributeSet attrs = new javax.swing.text.SimpleAttributeSet();
+            javax.swing.text.StyleConstants.setFontSize(attrs, newSize);
+            jtpWordSpace.setCharacterAttributes(attrs, false);
+
+            jtpWordSpace.requestFocusInWindow();
+        }
+    });
+
+    btnAlignLeft.addActionListener(new java.awt.event.ActionListener() {
+        @Override
+        public void actionPerformed(java.awt.event.ActionEvent e) {
+            javax.swing.text.SimpleAttributeSet attrs = new javax.swing.text.SimpleAttributeSet();
+            javax.swing.text.StyleConstants.setAlignment(attrs, javax.swing.text.StyleConstants.ALIGN_LEFT);
+            jtpWordSpace.setParagraphAttributes(attrs, false);
+            jtpWordSpace.requestFocusInWindow();
+        }
+    });
+
+    btnAlignCenter.addActionListener(new java.awt.event.ActionListener() {
+        @Override
+        public void actionPerformed(java.awt.event.ActionEvent e) {
+            javax.swing.text.SimpleAttributeSet attrs = new javax.swing.text.SimpleAttributeSet();
+            javax.swing.text.StyleConstants.setAlignment(attrs, javax.swing.text.StyleConstants.ALIGN_CENTER);
+            jtpWordSpace.setParagraphAttributes(attrs, false);
+            jtpWordSpace.requestFocusInWindow();
+        }
+    });
+
+    btnAlignRight.addActionListener(new java.awt.event.ActionListener() {
+        @Override
+        public void actionPerformed(java.awt.event.ActionEvent e) {
+            javax.swing.text.SimpleAttributeSet attrs = new javax.swing.text.SimpleAttributeSet();
+            javax.swing.text.StyleConstants.setAlignment(attrs, javax.swing.text.StyleConstants.ALIGN_RIGHT);
+            jtpWordSpace.setParagraphAttributes(attrs, false);
+            jtpWordSpace.requestFocusInWindow();
+        }
+    });
+
+    jtpWordSpace.addCaretListener(new javax.swing.event.CaretListener() {
+        @Override
+        public void caretUpdate(javax.swing.event.CaretEvent e) {
+            int pos = jtpWordSpace.getCaretPosition();
+            javax.swing.text.StyledDocument doc = jtpWordSpace.getStyledDocument();
+
+            if (doc.getLength() > 0) {
+                int attrPos = (pos > 0) ? pos - 1 : 0;
+                javax.swing.text.AttributeSet attrs = doc.getCharacterElement(attrPos).getAttributes();
+
+                boolean isBold = javax.swing.text.StyleConstants.isBold(attrs);
+                btnBold.setSelected(isBold);
+                btnBold.setBackground(isBold ? java.awt.Color.BLACK : java.awt.Color.WHITE);
+                btnBold.setForeground(isBold ? java.awt.Color.WHITE : java.awt.Color.BLACK);
+
+                int fontSize = javax.swing.text.StyleConstants.getFontSize(attrs);
+                if (fontSize >= 10 && fontSize <= 20) {
+                    spnFontSize.setValue(fontSize);
+                }
+            }
+        }
+    });
+}
 
     /**
      * @param args the command line arguments
