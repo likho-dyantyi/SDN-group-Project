@@ -1,3 +1,4 @@
+
 import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
@@ -42,13 +43,13 @@ public class TextEditor extends javax.swing.JFrame {
 
     public TextEditor() {
         initComponents();
-        
+
         this.fileController = new FileController(this);
         this.syntaxController = new SyntaxController(this);
-        
+
         setTitle("Group 5 Text Editor - Untitled");
         setLocationRelativeTo(null);
-        
+
         getContentPane().setLayout(new BorderLayout());
         setupToolbarAndFormatting();
         getContentPane().add(jScrollPane2, BorderLayout.CENTER);
@@ -146,8 +147,7 @@ public class TextEditor extends javax.swing.JFrame {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    
-    
+
     private void jMenuItem1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem1ActionPerformed
         fileController.openFile();
     }//GEN-LAST:event_jMenuItem1ActionPerformed
@@ -276,11 +276,24 @@ public class TextEditor extends javax.swing.JFrame {
         });
     }
 
-    public JTextPane getWordSpace() { return jtpWordSpace; }
-    public void setWordCountText(String text) { jlblWords.setText(text); }
-    public File getCurrentFile() { return currentFile; }
-    public void setCurrentFile(File file) { 
-        this.currentFile = file; 
+    public JTextPane getWordSpace() {
+        return jtpWordSpace;
+    }
+
+    public void setWordCountText(String text) {
+        jlblWords.setText(text);
+    }
+
+    public File getCurrentFile() {
+        return currentFile;
+    }
+
+    public SyntaxController getSyntaxController() {
+        return syntaxController;
+    }
+
+    public void setCurrentFile(File file) {
+        this.currentFile = file;
         setTitle("Text Editor - " + (file != null ? file.getName() : "Untitled"));
     }
 
@@ -320,327 +333,406 @@ public class TextEditor extends javax.swing.JFrame {
     private javax.swing.JTextPane jtpWordSpace;
     // End of variables declaration//GEN-END:variables
 
-class FileController {
-    private final TextEditor view;
+    class FileController {
 
-    public FileController(TextEditor view) {
-        this.view = view;
-    }
+        private final TextEditor view;
 
-    public void openFile() {
-        JFileChooser chooser = new JFileChooser();
-        chooser.setFileFilter(new FileNameExtensionFilter("Text Files (*.txt)", "txt"));
-        int option = chooser.showOpenDialog(view);
-        if (option == JFileChooser.APPROVE_OPTION) {
-            File file = chooser.getSelectedFile();
-            try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-                view.getWordSpace().read(reader, null);
-                view.setCurrentFile(file);
-            } catch (IOException e) {
-                JOptionPane.showMessageDialog(view, "Error reading file: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            }
+        public FileController(TextEditor view) {
+            this.view = view;
         }
-    }
 
-    public void saveFile(boolean saveAs) {
-        File currentFile = view.getCurrentFile();
-        if (currentFile == null || saveAs) {
+        public void openFile() {
             JFileChooser chooser = new JFileChooser();
             chooser.setFileFilter(new FileNameExtensionFilter("Text Files (*.txt)", "txt"));
-            int option = chooser.showSaveDialog(view);
+            int option = chooser.showOpenDialog(view);
             if (option == JFileChooser.APPROVE_OPTION) {
                 File file = chooser.getSelectedFile();
-                String filePath = file.getAbsolutePath();
-                if (!filePath.toLowerCase().endsWith(".txt")) {
-                    file = new File(filePath + ".txt");
-                }
-                executeSave(file);
-            }
-        } else {
-            executeSave(currentFile);
-        }
-    }
+                StringBuilder contentBuilder = new StringBuilder();
 
-    private void executeSave(File file) {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-            view.getWordSpace().write(writer);
-            view.setCurrentFile(file);
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(view, "Error saving file: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        contentBuilder.append(line).append("\n");
+                    }
+
+                    view.getWordSpace().setText(contentBuilder.toString());
+                    view.setCurrentFile(file);
+
+                    String text = contentBuilder.toString().replaceAll("^\\s+", "");
+                    if (!text.isEmpty()) {
+                        String firstWord = text.split("\\s+")[0].replaceAll("[^a-zA-Z]", "");
+
+                        if (SyntaxController.KEYWORD_PATTERN.matcher(firstWord).matches()) {
+                            view.getSyntaxController().applyFullDocumentHighlighting();
+                            view.getSyntaxController().validateSyntax();
+                        }
+                    }
+                } catch (IOException e) {
+                    JOptionPane.showMessageDialog(view, "Error reading file: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        }
+
+        public void saveFile(boolean saveAs) {
+            File currentFile = view.getCurrentFile();
+            if (currentFile == null || saveAs) {
+                JFileChooser chooser = new JFileChooser();
+                chooser.setFileFilter(new FileNameExtensionFilter("Text Files (*.txt)", "txt"));
+                int option = chooser.showSaveDialog(view);
+                if (option == JFileChooser.APPROVE_OPTION) {
+                    File file = chooser.getSelectedFile();
+                    String filePath = file.getAbsolutePath();
+                    if (!filePath.toLowerCase().endsWith(".txt")) {
+                        file = new File(filePath + ".txt");
+                    }
+                    executeSave(file);
+                }
+            } else {
+                executeSave(currentFile);
+            }
+        }
+
+        private void executeSave(File file) {
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+                view.getWordSpace().write(writer);
+                view.setCurrentFile(file);
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(view, "Error saving file: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
-}
 
     //Syntax Class
-class SyntaxController {
-    private final TextEditor view;
-    private final Timer debouncer;
-    private boolean isHighlighting = false;
-    private static final Logger logger = Logger.getLogger(SyntaxController.class.getName());
+    class SyntaxController {
 
-    private static final String[] JAVA_KEYWORDS = new String[]{
-        "abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class", "const",
-        "continue", "default", "do", "double", "else", "enum", "extends", "final", "finally", "float",
-        "for", "goto", "if", "implements", "import", "instanceof", "int", "interface", "long", "native",
-        "new", "package", "private", "protected", "public", "return", "short", "static", "strictfp",
-        "super", "switch", "synchronized", "this", "throw", "throws", "transient", "try", "void",
-        "volatile", "while", "true", "false", "null"
-    };
+        private final TextEditor view;
+        private final Timer debouncer;
+        private boolean isHighlighting = false;
+        private static final Logger logger = Logger.getLogger(SyntaxController.class.getName());
 
-    private static final Pattern KEYWORD_PATTERN;
-
-    static {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < JAVA_KEYWORDS.length; i++) {
-            if (i > 0) {
-                sb.append("|");
-            }
-            sb.append(Pattern.quote(JAVA_KEYWORDS[i]));
-        }
-        KEYWORD_PATTERN = Pattern.compile("\\b(" + sb.toString() + ")\\b");
-    }
-
-    public SyntaxController(TextEditor view) {
-        this.view = view;
-        this.debouncer = new Timer(400, e -> validateSyntax());
-        this.debouncer.setRepeats(false);
-        initSyntaxHighlighting();
-    }
-
-    private void initSyntaxHighlighting() {
-        view.getWordSpace().getDocument().addDocumentListener(new DocumentListener() {
-            private void triggerHighlight() {
-                if (isHighlighting) {
-                    return;
-                }
-                SwingUtilities.invokeLater(() -> applyHighlighting());
-            }
-
-            @Override
-            public void insertUpdate(DocumentEvent e) {
-                updateMyWordCount();
-                triggerHighlight();
-                debouncer.restart();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent e) {
-                updateMyWordCount();
-                triggerHighlight();
-                debouncer.restart();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent e) {
-                debouncer.restart();
-            }
-        });
-    }
-
-    private void updateMyWordCount() {
-        String text = view.getWordSpace().getText();
-        String trimmed = text.trim();
-        int totalWords = trimmed.isEmpty() ? 0 : trimmed.split("\\s+").length;
-        view.setWordCountText("Word count: " + totalWords);
-    }
-
-    private void applyHighlighting() {
-        StyledDocument doc = view.getWordSpace().getStyledDocument();
-        int length = doc.getLength();
-        if (length == 0) {
-            return;
-        }
-
-        SimpleAttributeSet keywordColor = new SimpleAttributeSet();
-        StyleConstants.setForeground(keywordColor, Color.BLUE);
-        SimpleAttributeSet defaultColor = new SimpleAttributeSet();
-        StyleConstants.setForeground(defaultColor, Color.BLACK);
-
-        int caretPos = view.getWordSpace().getCaretPosition();
-
-        try {
-            Element root = doc.getDefaultRootElement();
-            int lineIndex = root.getElementIndex(caretPos);
-            Element lineElement = root.getElement(lineIndex);
-
-            int startOffset = lineElement.getStartOffset();
-            int endOffset = lineElement.getEndOffset();
-
-            if (endOffset > startOffset && doc.getText(endOffset - 1, 1).equals("\n")) {
-                endOffset--;
-            }
-
-            int lineLength = endOffset - startOffset;
-
-            if (lineLength <= 0) {
-                return;
-            }
-            
-            doc.setCharacterAttributes(startOffset, lineLength, defaultColor, false);
-
-            String lineText = doc.getText(startOffset, lineLength);
-            Matcher m = KEYWORD_PATTERN.matcher(lineText);
-
-            while (m.find()) {
-                int matchStart = startOffset + m.start();
-                int matchLength = m.end() - m.start();
-                doc.setCharacterAttributes(matchStart, matchLength, keywordColor, false);
-            }
-
-        } catch (BadLocationException ex) {
-            logger.log(java.util.logging.Level.SEVERE, "Highlighting failed", ex);
-        }
-    }
-
-    public void validateSyntax() {
-        StyledDocument doc = view.getWordSpace().getStyledDocument();
-        int docLength = doc.getLength();
-        if (docLength == 0) {
-            return;
-        }
-
-        String normalizedSource;
-        try {
-            normalizedSource = doc.getText(0, docLength);
-        } catch (BadLocationException e) {
-            e.printStackTrace();
-            return;
-        }
-
-        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-        if (compiler == null) {
-            System.out.println("JDK is required to run the compiler API.");
-            return;
-        }
-
-        DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
-        StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null);
-
-        File current = view.getCurrentFile();
-        String fileName = (current != null) ? current.getName() : "Main.java";
-
-        JavaFileObject file = new SimpleJavaFileObject(
-                URI.create("string:///" + fileName), JavaFileObject.Kind.SOURCE) {
-            @Override
-            public CharSequence getCharContent(boolean ignoreEncodingErrors) {
-                return normalizedSource;
-            }
+        private static final String[] JAVA_KEYWORDS = new String[]{
+            "abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class", "const",
+            "continue", "default", "do", "double", "else", "enum", "extends", "final", "finally", "float",
+            "for", "goto", "if", "implements", "import", "instanceof", "int", "interface", "long", "native",
+            "new", "package", "private", "protected", "public", "return", "short", "static", "strictfp",
+            "super", "switch", "synchronized", "this", "throw", "throws", "transient", "try", "void",
+            "volatile", "while", "true", "false", "null"
         };
 
-        JavaCompiler.CompilationTask task = compiler.getTask(
-                null, fileManager, diagnostics, Arrays.asList("-proc:none"), null, Arrays.asList(file));
+        private static final Pattern KEYWORD_PATTERN;
 
-        task.call();
-
-        Highlighter.HighlightPainter errorPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.PINK);
-        Highlighter highlighter = view.getWordSpace().getHighlighter();
-        highlighter.removeAllHighlights();
-
-        for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
-            System.out.format("Error on line %d: %s%n", diagnostic.getLineNumber(), diagnostic.getMessage(null));
-
-            long startPos = diagnostic.getStartPosition();
-            long endPos = diagnostic.getEndPosition();
-
-            if (startPos != Diagnostic.NOPOS) {
-                try {
-                    if (endPos == Diagnostic.NOPOS || endPos <= startPos) {
-                        endPos = startPos + 1;
-                    }
-                    int start = Math.min((int) startPos, docLength);
-                    int end = Math.min((int) endPos, docLength);
-
-                    if (start < end) {
-                        highlighter.addHighlight(start, end, errorPainter);
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
+        static {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < JAVA_KEYWORDS.length; i++) {
+                if (i > 0) {
+                    sb.append("|");
                 }
+                sb.append(Pattern.quote(JAVA_KEYWORDS[i]));
             }
+            KEYWORD_PATTERN = Pattern.compile("\\b(" + sb.toString() + ")\\b");
         }
-    }
-}
 
-    //Utility Dialog Class
-class FindReplaceDialog extends JDialog {
-    private JTextField findField = new JTextField(15);
-    private JTextField replaceField = new JTextField(15);
-    private JButton findButton = new JButton("Find Next");
-    private JButton replaceButton = new JButton("Replace");
-    private JButton replaceAllButton = new JButton("Replace All");
-    
-    private final JTextPane editorPane;
-    private int findIndex = 0;
+        public SyntaxController(TextEditor view) {
+            this.view = view;
+            this.debouncer = new Timer(400, e -> validateSyntax());
+            this.debouncer.setRepeats(false);
+            initSyntaxHighlighting();
+        }
 
-    public FindReplaceDialog(JFrame parent, JTextPane editorPane) {
-        super(parent, "Find and Replace", false);
-        this.editorPane = editorPane;
+        private void initSyntaxHighlighting() {
+            view.getWordSpace().getDocument().addDocumentListener(new DocumentListener() {
+                private void triggerHighlight() {
+                    if (isHighlighting) {
+                        return;
+                    }
+                    SwingUtilities.invokeLater(() -> applyHighlighting());
+                }
 
-        setSize(440, 300);
-        setLocationRelativeTo(parent);
-        setLayout(new GridLayout(6, 6, 6, 6));
+                private void handleTextChange() {
+                    SwingUtilities.invokeLater(() -> {
+                        String text = jtpWordSpace.getText().replaceAll("^\\s+", "");
+                        if (text.isEmpty()) {
+                            debouncer.stop();
+                            return;
+                        }
 
-        JPanel findPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JLabel findLabel = new JLabel("Find:        ");
-        findPanel.add(findLabel);
-        findPanel.add(findField);
-        findPanel.add(findButton);
+                        if (text.startsWith("/*")) {
+                            int commentEnd = text.indexOf("*/");
+                            if (commentEnd != -1) {
+                                text = text.substring(commentEnd + 2).replaceAll("^\\s+", "");
+                            }
+                        }
 
-        JPanel replacePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JLabel replaceLabel = new JLabel("Replace:");
-        replacePanel.add(replaceLabel);
-        replacePanel.add(replaceField);
-        replacePanel.add(replaceButton);
+                        String firstWord = text.split("\\s+")[0];
+                        firstWord = firstWord.replaceAll("[^a-zA-Z]", "");
 
-        JPanel controlPanel = new JPanel();
-        controlPanel.add(replaceAllButton);
+                        Matcher matcher = KEYWORD_PATTERN.matcher(firstWord);
+                        if (matcher.matches()) {
+                            debouncer.restart();
+                            triggerHighlight();
+                        } else {
+                            debouncer.stop();
+                        }
+                    });
+                }
 
-        setupActions();
+                @Override
+                public void insertUpdate(DocumentEvent e) {
+                    updateMyWordCount();
+                    handleTextChange();
+                }
 
-        add(findPanel);
-        add(replacePanel);
-        add(controlPanel);
-    }
+                @Override
+                public void removeUpdate(DocumentEvent e) {
+                    updateMyWordCount();
+                    handleTextChange();
+                }
 
-    private void setupActions() {
-        findButton.addActionListener(e -> {
-            String textToFind = findField.getText();
-            String content = editorPane.getText();
-            if (textToFind.isEmpty()) {
+                @Override
+                public void changedUpdate(DocumentEvent e) {
+                    debouncer.restart();
+                }
+            });
+        }
+
+        public void updateMyWordCount() {
+            String text = view.getWordSpace().getText();
+            String trimmed = text.trim();
+            int totalWords = trimmed.isEmpty() ? 0 : trimmed.split("\\s+").length;
+            view.setWordCountText("Word count: " + totalWords);
+        }
+
+        private void applyHighlighting() {
+            StyledDocument doc = view.getWordSpace().getStyledDocument();
+            int length = doc.getLength();
+            if (length == 0) {
                 return;
             }
 
-            findIndex = content.indexOf(textToFind, findIndex);
-            if (findIndex != -1) {
-                editorPane.requestFocus();
-                editorPane.select(findIndex, findIndex + textToFind.length());
-                findIndex += textToFind.length();
-            } else {
-                JOptionPane.showMessageDialog(this, "No more matches found.");
-                findIndex = 0;
-            }
-        });
+            SimpleAttributeSet keywordColor = new SimpleAttributeSet();
+            StyleConstants.setForeground(keywordColor, Color.BLUE);
+            SimpleAttributeSet defaultColor = new SimpleAttributeSet();
+            StyleConstants.setForeground(defaultColor, Color.BLACK);
 
-        replaceButton.addActionListener(e -> {
-            String textToReplace = replaceField.getText();
-            String selectedText = editorPane.getSelectedText();
-            if (selectedText != null && !selectedText.isEmpty()) {
-                editorPane.replaceSelection(textToReplace);
-                findButton.getActionListeners()[0].actionPerformed(e);
-            } else {
-                JOptionPane.showMessageDialog(this, "Select or find a word to replace first.");
-            }
-        });
+            int caretPos = view.getWordSpace().getCaretPosition();
+            isHighlighting = true;
 
-        replaceAllButton.addActionListener(e -> {
-            String textToFind = findField.getText();
-            String textToReplace = replaceField.getText();
-            if (!textToFind.isEmpty()) {
-                String content = editorPane.getText();
-                editorPane.setText(content.replace(textToFind, textToReplace));
-                JOptionPane.showMessageDialog(this, "All occurrences replaced.");
+            try {
+                Element root = doc.getDefaultRootElement();
+                int lineIndex = root.getElementIndex(caretPos);
+                Element lineElement = root.getElement(lineIndex);
+
+                int startOffset = lineElement.getStartOffset();
+                int endOffset = lineElement.getEndOffset();
+
+                if (endOffset > startOffset && doc.getText(endOffset - 1, 1).equals("\n")) {
+                    endOffset--;
+                }
+
+                int lineLength = endOffset - startOffset;
+
+                if (lineLength <= 0) {
+                    return;
+                }
+
+                doc.setCharacterAttributes(startOffset, lineLength, defaultColor, false);
+
+                String lineText = doc.getText(startOffset, lineLength);
+                Matcher m = KEYWORD_PATTERN.matcher(lineText);
+
+                while (m.find()) {
+                    int matchStart = startOffset + m.start();
+                    int matchLength = m.end() - m.start();
+                    doc.setCharacterAttributes(matchStart, matchLength, keywordColor, false);
+                }
+
+            } catch (BadLocationException ex) {
+                logger.log(java.util.logging.Level.SEVERE, "Highlighting failed", ex);
+            } finally {
+                isHighlighting = false;
             }
-        });
+        }
+
+        public void validateSyntax() {
+            StyledDocument doc = view.getWordSpace().getStyledDocument();
+            int docLength = doc.getLength();
+            if (docLength == 0) {
+                return;
+            }
+
+            String normalizedSource;
+            try {
+                normalizedSource = doc.getText(0, docLength);
+            } catch (BadLocationException e) {
+                e.printStackTrace();
+                return;
+            }
+
+            JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+            if (compiler == null) {
+                System.out.println("JDK is required to run the compiler API.");
+                return;
+            }
+
+            DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
+            StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null);
+
+            File current = view.getCurrentFile();
+            String fileName = (current != null) ? current.getName() : "Main.java";
+            String jFileName = fileName.substring(0, fileName.length() - 4) + ".java";
+
+            JavaFileObject file = new SimpleJavaFileObject(
+                    URI.create("string:///" + jFileName), JavaFileObject.Kind.SOURCE) {
+                @Override
+                public CharSequence getCharContent(boolean ignoreEncodingErrors) {
+                    return normalizedSource;
+                }
+            };
+
+            JavaCompiler.CompilationTask task = compiler.getTask(
+                    null, fileManager, diagnostics, Arrays.asList("-proc:none"), null, Arrays.asList(file));
+
+            task.call();
+
+            Highlighter.HighlightPainter errorPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.PINK);
+            Highlighter highlighter = view.getWordSpace().getHighlighter();
+            highlighter.removeAllHighlights();
+
+            for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
+
+                long startPos = diagnostic.getStartPosition();
+                long endPos = diagnostic.getEndPosition();
+
+                if (startPos != Diagnostic.NOPOS) {
+                    try {
+                        if (endPos == Diagnostic.NOPOS || endPos <= startPos) {
+                            endPos = startPos + 1;
+                        }
+                        int start = Math.min((int) startPos, docLength);
+                        int end = Math.min((int) endPos, docLength);
+
+                        if (start < end) {
+                            highlighter.addHighlight(start, end, errorPainter);
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+
+        public void applyFullDocumentHighlighting() {
+            StyledDocument doc = view.getWordSpace().getStyledDocument();
+            int length = doc.getLength();
+            if (length == 0) {
+                return;
+            }
+
+            SimpleAttributeSet keywordColor = new SimpleAttributeSet();
+            StyleConstants.setForeground(keywordColor, Color.BLUE);
+            SimpleAttributeSet defaultColor = new SimpleAttributeSet();
+            StyleConstants.setForeground(defaultColor, Color.BLACK);
+
+            isHighlighting = true;
+            try {
+                // Reset everything to plain black first
+                doc.setCharacterAttributes(0, length, defaultColor, false);
+
+                // Scan the entire document text for keywords
+                String text = doc.getText(0, length);
+                Matcher m = KEYWORD_PATTERN.matcher(text);
+                while (m.find()) {
+                    doc.setCharacterAttributes(m.start(), m.end() - m.start(), keywordColor, false);
+                }
+            } catch (BadLocationException ex) {
+                logger.log(java.util.logging.Level.SEVERE, "File highlighting failed", ex);
+            } finally {
+                isHighlighting = false;
+            }
+        }
     }
-}    
+
+    //Utility Dialog Class
+    class FindReplaceDialog extends JDialog {
+
+        private JTextField findField = new JTextField(15);
+        private JTextField replaceField = new JTextField(15);
+        private JButton findButton = new JButton("Find Next");
+        private JButton replaceButton = new JButton("Replace");
+        private JButton replaceAllButton = new JButton("Replace All");
+
+        private final JTextPane editorPane;
+        private int findIndex = 0;
+
+        public FindReplaceDialog(JFrame parent, JTextPane editorPane) {
+            super(parent, "Find and Replace", false);
+            this.editorPane = editorPane;
+
+            setSize(440, 300);
+            setLocationRelativeTo(parent);
+            setLayout(new GridLayout(6, 6, 6, 6));
+
+            JPanel findPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            JLabel findLabel = new JLabel("Find:        ");
+            findPanel.add(findLabel);
+            findPanel.add(findField);
+            findPanel.add(findButton);
+
+            JPanel replacePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            JLabel replaceLabel = new JLabel("Replace:");
+            replacePanel.add(replaceLabel);
+            replacePanel.add(replaceField);
+            replacePanel.add(replaceButton);
+
+            JPanel controlPanel = new JPanel();
+            controlPanel.add(replaceAllButton);
+
+            setupActions();
+
+            add(findPanel);
+            add(replacePanel);
+            add(controlPanel);
+        }
+
+        private void setupActions() {
+            findButton.addActionListener(e -> {
+                String textToFind = findField.getText();
+                String content = editorPane.getText();
+                if (textToFind.isEmpty()) {
+                    return;
+                }
+
+                findIndex = content.indexOf(textToFind, findIndex);
+                if (findIndex != -1) {
+                    editorPane.requestFocus();
+                    editorPane.select(findIndex, findIndex + textToFind.length());
+                    findIndex += textToFind.length();
+                } else {
+                    JOptionPane.showMessageDialog(this, "No more matches found.");
+                    findIndex = 0;
+                }
+            });
+
+            replaceButton.addActionListener(e -> {
+                String textToReplace = replaceField.getText();
+                String selectedText = editorPane.getSelectedText();
+                if (selectedText != null && !selectedText.isEmpty()) {
+                    editorPane.replaceSelection(textToReplace);
+                    findButton.getActionListeners()[0].actionPerformed(e);
+                } else {
+                    JOptionPane.showMessageDialog(this, "Select or find a word to replace first.");
+                }
+            });
+
+            replaceAllButton.addActionListener(e -> {
+                String textToFind = findField.getText();
+                String textToReplace = replaceField.getText();
+                if (!textToFind.isEmpty()) {
+                    String content = editorPane.getText();
+                    editorPane.setText(content.replace(textToFind, textToReplace));
+                    JOptionPane.showMessageDialog(this, "All occurrences replaced.");
+                }
+            });
+        }
+    }
 }
