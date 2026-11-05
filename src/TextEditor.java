@@ -1,6 +1,7 @@
 import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
+import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -8,32 +9,17 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URI;
+import java.util.Arrays;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.swing.JButton;
-import javax.swing.JDialog;
-import javax.swing.JFileChooser;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JTextField;
-import javax.swing.JTextPane;
-import javax.swing.SwingUtilities;
+import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.DefaultHighlighter;
-import javax.swing.text.Highlighter;
-import javax.swing.text.Document;
-import javax.swing.text.SimpleAttributeSet;
-import javax.swing.text.StyleConstants;
-import javax.swing.text.StyledDocument;
-import javax.swing.text.Element;
-import javax.swing.Timer;
+import javax.swing.text.*;
 import javax.tools.*;
-import java.util.Arrays;
-
 
 /**
  *
@@ -41,47 +27,35 @@ import java.util.Arrays;
  */
 public class TextEditor extends javax.swing.JFrame {
 
-    private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(TextEditor.class.getName());
+    private static final Logger logger = Logger.getLogger(TextEditor.class.getName());
 
     private File currentFile = null;
-    private int findIndex = 0;
-    private Timer debouncer;
-    private boolean isHighlighting = false;
+    private FileController fileController;
+    private SyntaxController syntaxController;
 
-    //highlighting
-    private static final String[] JAVA_KEYWORDS = new String[]{
-        "abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class", "const",
-        "continue", "default", "do", "double", "else", "enum", "extends", "final", "finally", "float",
-        "for", "goto", "if", "implements", "import", "instanceof", "int", "interface", "long", "native",
-        "new", "package", "private", "protected", "public", "return", "short", "static", "strictfp",
-        "super", "switch", "synchronized", "this", "throw", "throws", "transient", "try", "void",
-        "volatile", "while", "true", "false", "null"
-    };
+    private JToolBar jToolBar1;
+    private JToggleButton btnBold;
+    private JSpinner spnFontSize;
+    private JButton btnAlignLeft;
+    private JButton btnAlignCenter;
+    private JButton btnAlignRight;
 
     public TextEditor() {
         initComponents();
-        initSyntaxHighlighting();
-        setTitle("Group 5 Text Editor");
-        setLocationRelativeTo(null);
-        debouncer = new Timer(400, e -> validateSyntax());
-        debouncer.setRepeats(false);
         
-        //format
-        getContentPane().setLayout(new java.awt.BorderLayout());
+        this.fileController = new FileController(this);
+        this.syntaxController = new SyntaxController(this);
+        
+        setTitle("Group 5 Text Editor - Untitled");
+        setLocationRelativeTo(null);
+        
+        getContentPane().setLayout(new BorderLayout());
         setupToolbarAndFormatting();
-        getContentPane().add(jScrollPane2, java.awt.BorderLayout.CENTER);
-        getContentPane().add(jlblWords, java.awt.BorderLayout.SOUTH);
+        getContentPane().add(jScrollPane2, BorderLayout.CENTER);
+        getContentPane().add(jlblWords, BorderLayout.SOUTH);
         revalidate();
         repaint();
-
     }
-    
-    private javax.swing.JToolBar jToolBar1;
-    private javax.swing.JToggleButton btnBold;
-    private javax.swing.JSpinner spnFontSize;
-    private javax.swing.JButton btnAlignLeft;
-    private javax.swing.JButton btnAlignCenter;
-    private javax.swing.JButton btnAlignRight;
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -172,20 +146,10 @@ public class TextEditor extends javax.swing.JFrame {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
+    
+    
     private void jMenuItem1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem1ActionPerformed
-        JFileChooser chooser = new JFileChooser();
-        chooser.setFileFilter(new FileNameExtensionFilter("Text Files (*.txt)", "txt"));
-        int option = chooser.showOpenDialog(this);
-        if (option == JFileChooser.APPROVE_OPTION) {
-            File file = chooser.getSelectedFile();
-            try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-                jtpWordSpace.read(reader, null);
-                currentFile = file;
-                setTitle("Text Editor - " + file.getName());
-            } catch (IOException e) {
-                JOptionPane.showMessageDialog(this, "Error reading file: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        }
+        fileController.openFile();
     }//GEN-LAST:event_jMenuItem1ActionPerformed
 
     // New File
@@ -197,143 +161,258 @@ public class TextEditor extends javax.swing.JFrame {
 
     // Save File
     private void jMenuItem3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem3ActionPerformed
-        if (currentFile == null) {
-            jMenuItem4ActionPerformed(evt);
-        } else {
-            saveToFile(currentFile);
-        }
+        fileController.saveFile(false);
     }//GEN-LAST:event_jMenuItem3ActionPerformed
 
     // Save As File
     private void jMenuItem4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem4ActionPerformed
-        JFileChooser chooser = new JFileChooser();
-        chooser.setFileFilter(new FileNameExtensionFilter("Text Files (*.txt)", "txt"));
-        int option = chooser.showSaveDialog(this);
-        if (option == JFileChooser.APPROVE_OPTION) {
-            File file = chooser.getSelectedFile();
-
-            //file .txt extension
-            String filePath = file.getAbsolutePath();
-            if (!filePath.toLowerCase().endsWith(".txt")) {
-                file = new File(filePath + ".txt");
-            }
-
-            saveToFile(file);
-        }
+        fileController.saveFile(true);
     }//GEN-LAST:event_jMenuItem4ActionPerformed
-
-    private void saveToFile(File file) {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-            jtpWordSpace.write(writer);
-            currentFile = file;
-            setTitle("Text Editor - " + file.getName());
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(this, "Error saving file: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
 
     private void jMenuItem5ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem5ActionPerformed
         System.exit(0);
     }//GEN-LAST:event_jMenuItem5ActionPerformed
 
     private void jMenuItem6ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem6ActionPerformed
-        openFindReplaceDialog(evt);
+        new FindReplaceDialog(this, jtpWordSpace).setVisible(true);
     }//GEN-LAST:event_jMenuItem6ActionPerformed
 
-    private void updateMyWordCount() {
-        String text = jtpWordSpace.getText();
-        String trimmed = text.trim();
-        int totalWords = trimmed.isEmpty() ? 0 : trimmed.split("\\s+").length;
-        jlblWords.setText("Word count: " + totalWords);
+    private void setupToolbarAndFormatting() {
+        jToolBar1 = new JToolBar();
+        jToolBar1.setFloatable(false);
+
+        btnBold = new JToggleButton("Bold");
+        btnBold.setBackground(Color.WHITE);
+        btnBold.setForeground(Color.BLACK);
+        btnBold.setFocusable(false);
+
+        SpinnerNumberModel sizeModel = new SpinnerNumberModel(12, 10, 20, 1);
+        spnFontSize = new JSpinner(sizeModel);
+        spnFontSize.setMaximumSize(new java.awt.Dimension(60, 30));
+
+        btnAlignLeft = new JButton("Left");
+        btnAlignLeft.setFocusable(false);
+        btnAlignCenter = new JButton("Center");
+        btnAlignCenter.setFocusable(false);
+        btnAlignRight = new JButton("Right");
+        btnAlignRight.setFocusable(false);
+
+        jToolBar1.add(btnBold);
+        jToolBar1.addSeparator();
+        jToolBar1.add(new JLabel(" Size: "));
+        jToolBar1.add(spnFontSize);
+        jToolBar1.addSeparator();
+        jToolBar1.add(btnAlignLeft);
+        jToolBar1.add(btnAlignCenter);
+        jToolBar1.add(btnAlignRight);
+
+        getContentPane().add(jToolBar1, BorderLayout.NORTH);
+
+        btnBold.addActionListener(e -> {
+            boolean isBold = btnBold.isSelected();
+
+            if (isBold) {
+                btnBold.setBackground(Color.BLACK);
+                btnBold.setForeground(Color.WHITE);
+            } else {
+                btnBold.setBackground(Color.WHITE);
+                btnBold.setForeground(Color.BLACK);
+            }
+
+            SimpleAttributeSet attrs = new SimpleAttributeSet();
+            StyleConstants.setBold(attrs, isBold);
+            jtpWordSpace.setCharacterAttributes(attrs, false);
+            jtpWordSpace.requestFocusInWindow();
+        });
+
+        spnFontSize.addChangeListener(e -> {
+            int newSize = (Integer) spnFontSize.getValue();
+
+            SimpleAttributeSet attrs = new SimpleAttributeSet();
+            StyleConstants.setFontSize(attrs, newSize);
+            jtpWordSpace.setCharacterAttributes(attrs, false);
+            jtpWordSpace.requestFocusInWindow();
+        });
+
+        btnAlignLeft.addActionListener(e -> {
+            SimpleAttributeSet attrs = new SimpleAttributeSet();
+            StyleConstants.setAlignment(attrs, StyleConstants.ALIGN_LEFT);
+            jtpWordSpace.setParagraphAttributes(attrs, false);
+            jtpWordSpace.requestFocusInWindow();
+        });
+
+        btnAlignCenter.addActionListener(e -> {
+            SimpleAttributeSet attrs = new SimpleAttributeSet();
+            StyleConstants.setAlignment(attrs, StyleConstants.ALIGN_CENTER);
+            jtpWordSpace.setParagraphAttributes(attrs, false);
+            jtpWordSpace.requestFocusInWindow();
+        });
+
+        btnAlignRight.addActionListener(e -> {
+            SimpleAttributeSet attrs = new SimpleAttributeSet();
+            StyleConstants.setAlignment(attrs, StyleConstants.ALIGN_RIGHT);
+            jtpWordSpace.setParagraphAttributes(attrs, false);
+            jtpWordSpace.requestFocusInWindow();
+        });
+
+        jtpWordSpace.addCaretListener(e -> {
+            int pos = jtpWordSpace.getCaretPosition();
+            StyledDocument doc = jtpWordSpace.getStyledDocument();
+
+            if (doc.getLength() > 0) {
+                int attrPos = (pos > 0) ? pos - 1 : 0;
+                AttributeSet attrs = doc.getCharacterElement(attrPos).getAttributes();
+
+                boolean isBold = StyleConstants.isBold(attrs);
+                btnBold.setSelected(isBold);
+                btnBold.setBackground(isBold ? Color.BLACK : Color.WHITE);
+                btnBold.setForeground(isBold ? Color.WHITE : Color.BLACK);
+
+                int fontSize = StyleConstants.getFontSize(attrs);
+                if (fontSize >= 10 && fontSize <= 20) {
+                    spnFontSize.setValue(fontSize);
+                }
+            }
+        });
     }
 
-    //find and replace
-    private void openFindReplaceDialog(ActionEvent evt) {
-        JDialog dialog = new JDialog(this, "Find and Replace", false);
-        dialog.setSize(440, 300);
-        dialog.setLocationRelativeTo(this);
-        dialog.setLayout(new GridLayout(6, 6, 6, 6));
-
-        //Find Field
-        JPanel findPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JLabel findLabel = new JLabel("Find:       ");
-        JTextField findField = new JTextField(15);
-        JButton findButton = new JButton("Find Next");
-        findPanel.add(findLabel);
-        findPanel.add(findField);
-        findPanel.add(findButton);
-
-        //Replace Field
-        JPanel replacePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JLabel replaceLabel = new JLabel("Replace:");
-        JTextField replaceField = new JTextField(15);
-        JButton replaceButton = new JButton("Replace");
-        replacePanel.add(replaceLabel);
-        replacePanel.add(replaceField);
-        replacePanel.add(replaceButton);
-
-        //Replace 
-        JPanel controlPanel = new JPanel();
-        JButton replaceAllButton = new JButton("Replace All");
-        controlPanel.add(replaceAllButton);
-
-        //Find Logic
-        findButton.addActionListener(e -> {
-            String textToFind = findField.getText();
-            String content = jtpWordSpace.getText();
-            if (textToFind.isEmpty()) {
-                return;
-            }
-
-            findIndex = content.indexOf(textToFind, findIndex);
-            if (findIndex != -1) {
-                jtpWordSpace.requestFocus();
-                jtpWordSpace.select(findIndex, findIndex + textToFind.length());
-                findIndex += textToFind.length();
-            } else {
-                JOptionPane.showMessageDialog(dialog, "No more matches found.");
-                findIndex = 0;
-            }
-        });
-
-        // Replace Logic 
-        replaceButton.addActionListener(e -> {
-            String textToReplace = replaceField.getText();
-            String selectedText = jtpWordSpace.getSelectedText();
-            if (selectedText != null && !selectedText.isEmpty()) {
-                jtpWordSpace.replaceSelection(textToReplace);
-                findButton.getActionListeners()[0].actionPerformed(e);
-            } else {
-                JOptionPane.showMessageDialog(dialog, "Select or find a word to replace first.");
-            }
-        });
-
-        // Replace All Logic
-        replaceAllButton.addActionListener(e -> {
-            String textToFind = findField.getText();
-            String textToReplace = replaceField.getText();
-            if (!textToFind.isEmpty()) {
-                String content = jtpWordSpace.getText();
-                jtpWordSpace.setText(content.replace(textToFind, textToReplace));
-                JOptionPane.showMessageDialog(dialog, "All occurrences replaced.");
-            }
-        });
-
-        dialog.add(findPanel);
-        dialog.add(replacePanel);
-        dialog.add(controlPanel);
-        dialog.setVisible(true);
+    public JTextPane getWordSpace() { return jtpWordSpace; }
+    public void setWordCountText(String text) { jlblWords.setText(text); }
+    public File getCurrentFile() { return currentFile; }
+    public void setCurrentFile(File file) { 
+        this.currentFile = file; 
+        setTitle("Text Editor - " + (file != null ? file.getName() : "Untitled"));
     }
 
-    //syntax
+    /**
+     * @param args the command line arguments
+     */
+    public static void main(String args[]) {
+        try {
+            for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+                if ("Nimbus".equals(info.getName())) {
+                    UIManager.setLookAndFeel(info.getClassName());
+                    break;
+                }
+            }
+        } catch (ReflectiveOperationException | UnsupportedLookAndFeelException ex) {
+            logger.log(java.util.logging.Level.SEVERE, null, ex);
+        }
+
+        java.awt.EventQueue.invokeLater(() -> new TextEditor().setVisible(true));
+    }
+
+
+    // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JMenu jMenu1;
+    private javax.swing.JMenu jMenu2;
+    private javax.swing.JMenu jMenu3;
+    private javax.swing.JMenu jMenu4;
+    private javax.swing.JMenuBar jMenuBar1;
+    private javax.swing.JMenuItem jMenuItem1;
+    private javax.swing.JMenuItem jMenuItem2;
+    private javax.swing.JMenuItem jMenuItem3;
+    private javax.swing.JMenuItem jMenuItem4;
+    private javax.swing.JMenuItem jMenuItem5;
+    private javax.swing.JMenuItem jMenuItem6;
+    private javax.swing.JScrollPane jScrollPane2;
+    private javax.swing.JLabel jlblWords;
+    private javax.swing.JTextPane jtpWordSpace;
+    // End of variables declaration//GEN-END:variables
+
+class FileController {
+    private final TextEditor view;
+
+    public FileController(TextEditor view) {
+        this.view = view;
+    }
+
+    public void openFile() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setFileFilter(new FileNameExtensionFilter("Text Files (*.txt)", "txt"));
+        int option = chooser.showOpenDialog(view);
+        if (option == JFileChooser.APPROVE_OPTION) {
+            File file = chooser.getSelectedFile();
+            try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                view.getWordSpace().read(reader, null);
+                view.setCurrentFile(file);
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(view, "Error reading file: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    public void saveFile(boolean saveAs) {
+        File currentFile = view.getCurrentFile();
+        if (currentFile == null || saveAs) {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setFileFilter(new FileNameExtensionFilter("Text Files (*.txt)", "txt"));
+            int option = chooser.showSaveDialog(view);
+            if (option == JFileChooser.APPROVE_OPTION) {
+                File file = chooser.getSelectedFile();
+                String filePath = file.getAbsolutePath();
+                if (!filePath.toLowerCase().endsWith(".txt")) {
+                    file = new File(filePath + ".txt");
+                }
+                executeSave(file);
+            }
+        } else {
+            executeSave(currentFile);
+        }
+    }
+
+    private void executeSave(File file) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+            view.getWordSpace().write(writer);
+            view.setCurrentFile(file);
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(view, "Error saving file: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+}
+
+    //Syntax Class
+class SyntaxController {
+    private final TextEditor view;
+    private final Timer debouncer;
+    private boolean isHighlighting = false;
+    private static final Logger logger = Logger.getLogger(SyntaxController.class.getName());
+
+    private static final String[] JAVA_KEYWORDS = new String[]{
+        "abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class", "const",
+        "continue", "default", "do", "double", "else", "enum", "extends", "final", "finally", "float",
+        "for", "goto", "if", "implements", "import", "instanceof", "int", "interface", "long", "native",
+        "new", "package", "private", "protected", "public", "return", "short", "static", "strictfp",
+        "super", "switch", "synchronized", "this", "throw", "throws", "transient", "try", "void",
+        "volatile", "while", "true", "false", "null"
+    };
+
+    private static final Pattern KEYWORD_PATTERN;
+
+    static {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < JAVA_KEYWORDS.length; i++) {
+            if (i > 0) {
+                sb.append("|");
+            }
+            sb.append(Pattern.quote(JAVA_KEYWORDS[i]));
+        }
+        KEYWORD_PATTERN = Pattern.compile("\\b(" + sb.toString() + ")\\b");
+    }
+
+    public SyntaxController(TextEditor view) {
+        this.view = view;
+        this.debouncer = new Timer(400, e -> validateSyntax());
+        this.debouncer.setRepeats(false);
+        initSyntaxHighlighting();
+    }
+
     private void initSyntaxHighlighting() {
-        jtpWordSpace.getDocument().addDocumentListener(new DocumentListener() {
+        view.getWordSpace().getDocument().addDocumentListener(new DocumentListener() {
             private void triggerHighlight() {
-             
                 if (isHighlighting) {
                     return;
                 }
-
                 SwingUtilities.invokeLater(() -> applyHighlighting());
             }
 
@@ -358,23 +437,15 @@ public class TextEditor extends javax.swing.JFrame {
         });
     }
 
-    private static final Pattern KEYWORD_PATTERN;
-
-    static {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < JAVA_KEYWORDS.length; i++) {
-            if (i > 0) {
-                sb.append("|");
-            }
-            sb.append(Pattern.quote(JAVA_KEYWORDS[i]));
-        }
-        KEYWORD_PATTERN = Pattern.compile("\\b(" + sb.toString() + ")\\b");
+    private void updateMyWordCount() {
+        String text = view.getWordSpace().getText();
+        String trimmed = text.trim();
+        int totalWords = trimmed.isEmpty() ? 0 : trimmed.split("\\s+").length;
+        view.setWordCountText("Word count: " + totalWords);
     }
 
     private void applyHighlighting() {
-
-
-        StyledDocument doc = jtpWordSpace.getStyledDocument();
+        StyledDocument doc = view.getWordSpace().getStyledDocument();
         int length = doc.getLength();
         if (length == 0) {
             return;
@@ -385,7 +456,7 @@ public class TextEditor extends javax.swing.JFrame {
         SimpleAttributeSet defaultColor = new SimpleAttributeSet();
         StyleConstants.setForeground(defaultColor, Color.BLACK);
 
-        int caretPos = jtpWordSpace.getCaretPosition();
+        int caretPos = view.getWordSpace().getCaretPosition();
 
         try {
             Element root = doc.getDefaultRootElement();
@@ -404,7 +475,6 @@ public class TextEditor extends javax.swing.JFrame {
             if (lineLength <= 0) {
                 return;
             }
-
             
             doc.setCharacterAttributes(startOffset, lineLength, defaultColor, false);
 
@@ -422,14 +492,8 @@ public class TextEditor extends javax.swing.JFrame {
         }
     }
 
-    public int getCaretLineNumber(JTextPane textPane) {
-        int caretPosition = textPane.getCaretPosition();
-        Element rootElement = textPane.getDocument().getDefaultRootElement();
-        return rootElement.getElementIndex(caretPosition);
-    }
-
     public void validateSyntax() {
-        StyledDocument doc = jtpWordSpace.getStyledDocument();
+        StyledDocument doc = view.getWordSpace().getStyledDocument();
         int docLength = doc.getLength();
         if (docLength == 0) {
             return;
@@ -452,8 +516,11 @@ public class TextEditor extends javax.swing.JFrame {
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
         StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null);
 
+        File current = view.getCurrentFile();
+        String fileName = (current != null) ? current.getName() : "Main.java";
+
         JavaFileObject file = new SimpleJavaFileObject(
-                java.net.URI.create("string:///SimpleClass.java"), JavaFileObject.Kind.SOURCE) {
+                URI.create("string:///" + fileName), JavaFileObject.Kind.SOURCE) {
             @Override
             public CharSequence getCharContent(boolean ignoreEncodingErrors) {
                 return normalizedSource;
@@ -466,7 +533,7 @@ public class TextEditor extends javax.swing.JFrame {
         task.call();
 
         Highlighter.HighlightPainter errorPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.PINK);
-        Highlighter highlighter = jtpWordSpace.getHighlighter();
+        Highlighter highlighter = view.getWordSpace().getHighlighter();
         highlighter.removeAllHighlights();
 
         for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
@@ -491,169 +558,89 @@ public class TextEditor extends javax.swing.JFrame {
                 }
             }
         }
-
     }
-    
-    private void setupToolbarAndFormatting() {
-    //Toolbar
-    jToolBar1 = new javax.swing.JToolBar();
-    jToolBar1.setFloatable(false);
-
-    //Bold  Button
-    btnBold = new javax.swing.JToggleButton("Bold");
-    btnBold.setBackground(java.awt.Color.WHITE);
-    btnBold.setForeground(java.awt.Color.BLACK);
-    btnBold.setFocusable(false);
-
-    //Font Size
-    javax.swing.SpinnerNumberModel sizeModel = new javax.swing.SpinnerNumberModel(12, 10, 20, 1);
-    spnFontSize = new javax.swing.JSpinner(sizeModel);
-    spnFontSize.setMaximumSize(new java.awt.Dimension(60, 30));
-
-    //Alignment Buttons
-    btnAlignLeft = new javax.swing.JButton("Left");
-    btnAlignLeft.setFocusable(false);
-    btnAlignCenter = new javax.swing.JButton("Center");
-    btnAlignCenter.setFocusable(false);
-    btnAlignRight = new javax.swing.JButton("Right");
-    btnAlignRight.setFocusable(false);
-
-    //controls toolbar
-    jToolBar1.add(btnBold);
-    jToolBar1.addSeparator();
-    jToolBar1.add(new javax.swing.JLabel(" Size: "));
-    jToolBar1.add(spnFontSize);
-    jToolBar1.addSeparator();
-    jToolBar1.add(btnAlignLeft);
-    jToolBar1.add(btnAlignCenter);
-    jToolBar1.add(btnAlignRight);
-
-    getContentPane().add(jToolBar1, java.awt.BorderLayout.NORTH);
-
-   
-
- 
-    btnBold.addActionListener(new java.awt.event.ActionListener() {
-        @Override
-        public void actionPerformed(java.awt.event.ActionEvent e) {
-            boolean isBold = btnBold.isSelected();
-
-            if (isBold) {
-                btnBold.setBackground(java.awt.Color.BLACK);
-                btnBold.setForeground(java.awt.Color.WHITE);
-            } else {
-                btnBold.setBackground(java.awt.Color.WHITE);
-                btnBold.setForeground(java.awt.Color.BLACK);
-            }
-
-            javax.swing.text.SimpleAttributeSet attrs = new javax.swing.text.SimpleAttributeSet();
-            javax.swing.text.StyleConstants.setBold(attrs, isBold);
-            jtpWordSpace.setCharacterAttributes(attrs, false);
-
-            jtpWordSpace.requestFocusInWindow();
-        }
-    });
-
-    spnFontSize.addChangeListener(new javax.swing.event.ChangeListener() {
-        @Override
-        public void stateChanged(javax.swing.event.ChangeEvent e) {
-            int newSize = (Integer) spnFontSize.getValue();
-
-            javax.swing.text.SimpleAttributeSet attrs = new javax.swing.text.SimpleAttributeSet();
-            javax.swing.text.StyleConstants.setFontSize(attrs, newSize);
-            jtpWordSpace.setCharacterAttributes(attrs, false);
-
-            jtpWordSpace.requestFocusInWindow();
-        }
-    });
-
-    btnAlignLeft.addActionListener(new java.awt.event.ActionListener() {
-        @Override
-        public void actionPerformed(java.awt.event.ActionEvent e) {
-            javax.swing.text.SimpleAttributeSet attrs = new javax.swing.text.SimpleAttributeSet();
-            javax.swing.text.StyleConstants.setAlignment(attrs, javax.swing.text.StyleConstants.ALIGN_LEFT);
-            jtpWordSpace.setParagraphAttributes(attrs, false);
-            jtpWordSpace.requestFocusInWindow();
-        }
-    });
-
-    btnAlignCenter.addActionListener(new java.awt.event.ActionListener() {
-        @Override
-        public void actionPerformed(java.awt.event.ActionEvent e) {
-            javax.swing.text.SimpleAttributeSet attrs = new javax.swing.text.SimpleAttributeSet();
-            javax.swing.text.StyleConstants.setAlignment(attrs, javax.swing.text.StyleConstants.ALIGN_CENTER);
-            jtpWordSpace.setParagraphAttributes(attrs, false);
-            jtpWordSpace.requestFocusInWindow();
-        }
-    });
-
-    btnAlignRight.addActionListener(new java.awt.event.ActionListener() {
-        @Override
-        public void actionPerformed(java.awt.event.ActionEvent e) {
-            javax.swing.text.SimpleAttributeSet attrs = new javax.swing.text.SimpleAttributeSet();
-            javax.swing.text.StyleConstants.setAlignment(attrs, javax.swing.text.StyleConstants.ALIGN_RIGHT);
-            jtpWordSpace.setParagraphAttributes(attrs, false);
-            jtpWordSpace.requestFocusInWindow();
-        }
-    });
-
-    jtpWordSpace.addCaretListener(new javax.swing.event.CaretListener() {
-        @Override
-        public void caretUpdate(javax.swing.event.CaretEvent e) {
-            int pos = jtpWordSpace.getCaretPosition();
-            javax.swing.text.StyledDocument doc = jtpWordSpace.getStyledDocument();
-
-            if (doc.getLength() > 0) {
-                int attrPos = (pos > 0) ? pos - 1 : 0;
-                javax.swing.text.AttributeSet attrs = doc.getCharacterElement(attrPos).getAttributes();
-
-                boolean isBold = javax.swing.text.StyleConstants.isBold(attrs);
-                btnBold.setSelected(isBold);
-                btnBold.setBackground(isBold ? java.awt.Color.BLACK : java.awt.Color.WHITE);
-                btnBold.setForeground(isBold ? java.awt.Color.WHITE : java.awt.Color.BLACK);
-
-                int fontSize = javax.swing.text.StyleConstants.getFontSize(attrs);
-                if (fontSize >= 10 && fontSize <= 20) {
-                    spnFontSize.setValue(fontSize);
-                }
-            }
-        }
-    });
 }
 
-    /**
-     * @param args the command line arguments
-     */
-    public static void main(String args[]) {
-        try {
-            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
-                if ("Nimbus".equals(info.getName())) {
-                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
-                    break;
-                }
-            }
-        } catch (ReflectiveOperationException | javax.swing.UnsupportedLookAndFeelException ex) {
-            logger.log(java.util.logging.Level.SEVERE, null, ex);
-        }
+    //Utility Dialog Class
+class FindReplaceDialog extends JDialog {
+    private JTextField findField = new JTextField(15);
+    private JTextField replaceField = new JTextField(15);
+    private JButton findButton = new JButton("Find Next");
+    private JButton replaceButton = new JButton("Replace");
+    private JButton replaceAllButton = new JButton("Replace All");
+    
+    private final JTextPane editorPane;
+    private int findIndex = 0;
 
-        java.awt.EventQueue.invokeLater(() -> new TextEditor().setVisible(true));
+    public FindReplaceDialog(JFrame parent, JTextPane editorPane) {
+        super(parent, "Find and Replace", false);
+        this.editorPane = editorPane;
+
+        setSize(440, 300);
+        setLocationRelativeTo(parent);
+        setLayout(new GridLayout(6, 6, 6, 6));
+
+        JPanel findPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JLabel findLabel = new JLabel("Find:        ");
+        findPanel.add(findLabel);
+        findPanel.add(findField);
+        findPanel.add(findButton);
+
+        JPanel replacePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JLabel replaceLabel = new JLabel("Replace:");
+        replacePanel.add(replaceLabel);
+        replacePanel.add(replaceField);
+        replacePanel.add(replaceButton);
+
+        JPanel controlPanel = new JPanel();
+        controlPanel.add(replaceAllButton);
+
+        setupActions();
+
+        add(findPanel);
+        add(replacePanel);
+        add(controlPanel);
     }
 
+    private void setupActions() {
+        findButton.addActionListener(e -> {
+            String textToFind = findField.getText();
+            String content = editorPane.getText();
+            if (textToFind.isEmpty()) {
+                return;
+            }
 
-    // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JMenu jMenu1;
-    private javax.swing.JMenu jMenu2;
-    private javax.swing.JMenu jMenu3;
-    private javax.swing.JMenu jMenu4;
-    private javax.swing.JMenuBar jMenuBar1;
-    private javax.swing.JMenuItem jMenuItem1;
-    private javax.swing.JMenuItem jMenuItem2;
-    private javax.swing.JMenuItem jMenuItem3;
-    private javax.swing.JMenuItem jMenuItem4;
-    private javax.swing.JMenuItem jMenuItem5;
-    private javax.swing.JMenuItem jMenuItem6;
-    private javax.swing.JScrollPane jScrollPane2;
-    private javax.swing.JLabel jlblWords;
-    private javax.swing.JTextPane jtpWordSpace;
-    // End of variables declaration//GEN-END:variables
+            findIndex = content.indexOf(textToFind, findIndex);
+            if (findIndex != -1) {
+                editorPane.requestFocus();
+                editorPane.select(findIndex, findIndex + textToFind.length());
+                findIndex += textToFind.length();
+            } else {
+                JOptionPane.showMessageDialog(this, "No more matches found.");
+                findIndex = 0;
+            }
+        });
+
+        replaceButton.addActionListener(e -> {
+            String textToReplace = replaceField.getText();
+            String selectedText = editorPane.getSelectedText();
+            if (selectedText != null && !selectedText.isEmpty()) {
+                editorPane.replaceSelection(textToReplace);
+                findButton.getActionListeners()[0].actionPerformed(e);
+            } else {
+                JOptionPane.showMessageDialog(this, "Select or find a word to replace first.");
+            }
+        });
+
+        replaceAllButton.addActionListener(e -> {
+            String textToFind = findField.getText();
+            String textToReplace = replaceField.getText();
+            if (!textToFind.isEmpty()) {
+                String content = editorPane.getText();
+                editorPane.setText(content.replace(textToFind, textToReplace));
+                JOptionPane.showMessageDialog(this, "All occurrences replaced.");
+            }
+        });
+    }
+}    
 }
