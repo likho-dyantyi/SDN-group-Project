@@ -490,7 +490,7 @@ public class TextEditor extends javax.swing.JFrame {
 
                 @Override
                 public void changedUpdate(DocumentEvent e) {
-                    debouncer.restart();
+                    
                 }
             });
         }
