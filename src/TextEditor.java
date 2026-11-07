@@ -408,8 +408,9 @@ public class TextEditor extends javax.swing.JFrame {
         private final TextEditor view;
         private final Timer debouncer;
         private boolean isHighlighting = false;
+        private boolean isCode = false;
         private static final Logger logger = Logger.getLogger(SyntaxController.class.getName());
-
+        
         private static final String[] JAVA_KEYWORDS = new String[]{
             "abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class", "const",
             "continue", "default", "do", "double", "else", "enum", "extends", "final", "finally", "float",
@@ -437,6 +438,10 @@ public class TextEditor extends javax.swing.JFrame {
             this.debouncer = new Timer(400, e -> validateSyntax());
             this.debouncer.setRepeats(false);
             initSyntaxHighlighting();
+        }
+        
+        public boolean getIsCode(){
+            return isCode;
         }
 
         private void initSyntaxHighlighting() {
@@ -470,6 +475,7 @@ public class TextEditor extends javax.swing.JFrame {
                         if (matcher.matches()) {
                             debouncer.restart();
                             triggerHighlight();
+                            isCode = true;
                         } else {
                             debouncer.stop();
                         }
@@ -662,10 +668,12 @@ public class TextEditor extends javax.swing.JFrame {
         private JButton replaceAllButton = new JButton("Replace All");
 
         private final JTextPane editorPane;
+        private final TextEditor view;
         private int findIndex = 0;
 
-        public FindReplaceDialog(JFrame parent, JTextPane editorPane) {
+        public FindReplaceDialog(TextEditor parent, JTextPane editorPane) {
             super(parent, "Find and Replace", false);
+            this.view = parent;
             this.editorPane = editorPane;
 
             setSize(440, 300);
@@ -730,6 +738,11 @@ public class TextEditor extends javax.swing.JFrame {
                 if (!textToFind.isEmpty()) {
                     String content = editorPane.getText();
                     editorPane.setText(content.replace(textToFind, textToReplace));
+                    
+                    if (view.getSyntaxController().getIsCode()){
+                        view.getSyntaxController().applyFullDocumentHighlighting();
+                    }
+                    
                     JOptionPane.showMessageDialog(this, "All occurrences replaced.");
                 }
             });
