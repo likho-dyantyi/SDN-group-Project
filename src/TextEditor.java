@@ -27,7 +27,7 @@ import javax.tools.*;
  * @author cm coolmaster
  */
 public class TextEditor extends javax.swing.JFrame {
-
+    
     private static final Logger logger = Logger.getLogger(TextEditor.class.getName());
 
     private File currentFile = null;
@@ -41,6 +41,7 @@ public class TextEditor extends javax.swing.JFrame {
     private JButton btnAlignCenter;
     private JButton btnAlignRight;
 
+    //constructor
     public TextEditor() {
         initComponents();
 
@@ -147,7 +148,7 @@ public class TextEditor extends javax.swing.JFrame {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-
+    //open file
     private void jMenuItem1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem1ActionPerformed
         fileController.openFile();
     }//GEN-LAST:event_jMenuItem1ActionPerformed
@@ -168,7 +169,7 @@ public class TextEditor extends javax.swing.JFrame {
     private void jMenuItem4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem4ActionPerformed
         fileController.saveFile(true);
     }//GEN-LAST:event_jMenuItem4ActionPerformed
-
+    //Close program
     private void jMenuItem5ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem5ActionPerformed
         System.exit(0);
     }//GEN-LAST:event_jMenuItem5ActionPerformed
@@ -177,6 +178,7 @@ public class TextEditor extends javax.swing.JFrame {
         new FindReplaceDialog(this, jtpWordSpace).setVisible(true);
     }//GEN-LAST:event_jMenuItem6ActionPerformed
 
+    //Tool bar
     private void setupToolbarAndFormatting() {
         jToolBar1 = new JToolBar();
         jToolBar1.setFloatable(false);
@@ -208,6 +210,7 @@ public class TextEditor extends javax.swing.JFrame {
 
         getContentPane().add(jToolBar1, BorderLayout.NORTH);
 
+        //Bold
         btnBold.addActionListener(e -> {
             boolean isBold = btnBold.isSelected();
 
@@ -225,6 +228,7 @@ public class TextEditor extends javax.swing.JFrame {
             jtpWordSpace.requestFocusInWindow();
         });
 
+        //Font size
         spnFontSize.addChangeListener(e -> {
             int newSize = (Integer) spnFontSize.getValue();
 
@@ -233,7 +237,8 @@ public class TextEditor extends javax.swing.JFrame {
             jtpWordSpace.setCharacterAttributes(attrs, false);
             jtpWordSpace.requestFocusInWindow();
         });
-
+        
+        //Alignment
         btnAlignLeft.addActionListener(e -> {
             SimpleAttributeSet attrs = new SimpleAttributeSet();
             StyleConstants.setAlignment(attrs, StyleConstants.ALIGN_LEFT);
@@ -276,6 +281,7 @@ public class TextEditor extends javax.swing.JFrame {
         });
     }
 
+    //Getter methods to retrive values
     public JTextPane getWordSpace() {
         return jtpWordSpace;
     }
@@ -333,6 +339,7 @@ public class TextEditor extends javax.swing.JFrame {
     private javax.swing.JTextPane jtpWordSpace;
     // End of variables declaration//GEN-END:variables
 
+    //File handling class
     class FileController {
 
         private final TextEditor view;
@@ -341,14 +348,17 @@ public class TextEditor extends javax.swing.JFrame {
             this.view = view;
         }
 
+        //Open file method
         public void openFile() {
             JFileChooser chooser = new JFileChooser();
             chooser.setFileFilter(new FileNameExtensionFilter("Text Files (*.txt)", "txt"));
             int option = chooser.showOpenDialog(view);
+            
             if (option == JFileChooser.APPROVE_OPTION) {
                 File file = chooser.getSelectedFile();
                 StringBuilder contentBuilder = new StringBuilder();
 
+                //Try-catch block to handle potential system errors
                 try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
@@ -373,12 +383,15 @@ public class TextEditor extends javax.swing.JFrame {
             }
         }
 
+        //Save file method
         public void saveFile(boolean saveAs) {
             File currentFile = view.getCurrentFile();
+            
             if (currentFile == null || saveAs) {
                 JFileChooser chooser = new JFileChooser();
                 chooser.setFileFilter(new FileNameExtensionFilter("Text Files (*.txt)", "txt"));
                 int option = chooser.showSaveDialog(view);
+                
                 if (option == JFileChooser.APPROVE_OPTION) {
                     File file = chooser.getSelectedFile();
                     String filePath = file.getAbsolutePath();
@@ -391,7 +404,8 @@ public class TextEditor extends javax.swing.JFrame {
                 executeSave(currentFile);
             }
         }
-
+        
+        //Saving method
         private void executeSave(File file) {
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
                 view.getWordSpace().write(writer);
@@ -420,8 +434,9 @@ public class TextEditor extends javax.swing.JFrame {
             "volatile", "while", "true", "false", "null"
         };
 
+        //Making a stringbuilder and creating the pattern object
         private static final Pattern KEYWORD_PATTERN;
-
+        
         static {
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < JAVA_KEYWORDS.length; i++) {
@@ -433,6 +448,7 @@ public class TextEditor extends javax.swing.JFrame {
             KEYWORD_PATTERN = Pattern.compile("\\b(" + sb.toString() + ")\\b");
         }
 
+        //Constructor
         public SyntaxController(TextEditor view) {
             this.view = view;
             this.debouncer = new Timer(400, e -> validateSyntax());
@@ -440,12 +456,15 @@ public class TextEditor extends javax.swing.JFrame {
             initSyntaxHighlighting();
         }
         
+        //Getter method for value retrival of isCode
         public boolean getIsCode(){
             return isCode;
         }
-
+        
+        //Syntax checking method
         private void initSyntaxHighlighting() {
             view.getWordSpace().getDocument().addDocumentListener(new DocumentListener() {
+                //Safety measure to avoid triggering document listener in the middle of highlighting
                 private void triggerHighlight() {
                     if (isHighlighting) {
                         return;
@@ -453,6 +472,7 @@ public class TextEditor extends javax.swing.JFrame {
                     SwingUtilities.invokeLater(() -> applyHighlighting());
                 }
 
+                //Handling input
                 private void handleTextChange() {
                     SwingUtilities.invokeLater(() -> {
                         String text = jtpWordSpace.getText().replaceAll("^\\s+", "");
@@ -461,6 +481,7 @@ public class TextEditor extends javax.swing.JFrame {
                             return;
                         }
 
+                        //Stripping outer bounds of the text
                         if (text.startsWith("/*")) {
                             int commentEnd = text.indexOf("*/");
                             if (commentEnd != -1) {
@@ -468,9 +489,11 @@ public class TextEditor extends javax.swing.JFrame {
                             }
                         }
 
+                        //Grab first word
                         String firstWord = text.split("\\s+")[0];
                         firstWord = firstWord.replaceAll("[^a-zA-Z]", "");
 
+                        //match first word to keywords to determine if it is code and respond accordingly
                         Matcher matcher = KEYWORD_PATTERN.matcher(firstWord);
                         if (matcher.matches()) {
                             debouncer.restart();
@@ -481,7 +504,8 @@ public class TextEditor extends javax.swing.JFrame {
                         }
                     });
                 }
-
+                
+                //Document listener methods
                 @Override
                 public void insertUpdate(DocumentEvent e) {
                     updateMyWordCount();
@@ -501,6 +525,7 @@ public class TextEditor extends javax.swing.JFrame {
             });
         }
 
+        //Word count method
         public void updateMyWordCount() {
             String text = view.getWordSpace().getText();
             String trimmed = text.trim();
@@ -508,6 +533,7 @@ public class TextEditor extends javax.swing.JFrame {
             view.setWordCountText("Word count: " + totalWords);
         }
 
+        //Keywords highlight method
         private void applyHighlighting() {
             StyledDocument doc = view.getWordSpace().getStyledDocument();
             int length = doc.getLength();
@@ -515,6 +541,7 @@ public class TextEditor extends javax.swing.JFrame {
                 return;
             }
 
+            //Set highlighters
             SimpleAttributeSet keywordColor = new SimpleAttributeSet();
             StyleConstants.setForeground(keywordColor, Color.BLUE);
             SimpleAttributeSet defaultColor = new SimpleAttributeSet();
@@ -523,7 +550,9 @@ public class TextEditor extends javax.swing.JFrame {
             int caretPos = view.getWordSpace().getCaretPosition();
             isHighlighting = true;
 
+            //try catch block to handle possible excpetions
             try {
+                //Determine highlight positions
                 Element root = doc.getDefaultRootElement();
                 int lineIndex = root.getElementIndex(caretPos);
                 Element lineElement = root.getElement(lineIndex);
@@ -543,9 +572,10 @@ public class TextEditor extends javax.swing.JFrame {
 
                 doc.setCharacterAttributes(startOffset, lineLength, defaultColor, false);
 
+                //Match keywords and highlight
                 String lineText = doc.getText(startOffset, lineLength);
                 Matcher m = KEYWORD_PATTERN.matcher(lineText);
-
+                
                 while (m.find()) {
                     int matchStart = startOffset + m.start();
                     int matchLength = m.end() - m.start();
@@ -559,6 +589,7 @@ public class TextEditor extends javax.swing.JFrame {
             }
         }
 
+        //Syntax highlighting method
         public void validateSyntax() {
             StyledDocument doc = view.getWordSpace().getStyledDocument();
             int docLength = doc.getLength();
@@ -566,6 +597,7 @@ public class TextEditor extends javax.swing.JFrame {
                 return;
             }
 
+            //Normalize text
             String normalizedSource;
             try {
                 normalizedSource = doc.getText(0, docLength);
@@ -573,20 +605,24 @@ public class TextEditor extends javax.swing.JFrame {
                 e.printStackTrace();
                 return;
             }
-
+            
+            //Create cimpiler object
             JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
             if (compiler == null) {
                 System.out.println("JDK is required to run the compiler API.");
                 return;
             }
 
+            //Create diagnistic collector and file manager
             DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
             StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null);
 
+            //Get file name and make .java file
             File current = view.getCurrentFile();
             String fileName = (current != null) ? current.getName() : "Main.java";
             String jFileName = fileName.substring(0, fileName.length() - 4) + ".java";
 
+            //Create an in-memory JavaFileObject
             JavaFileObject file = new SimpleJavaFileObject(
                     URI.create("string:///" + jFileName), JavaFileObject.Kind.SOURCE) {
                 @Override
@@ -595,15 +631,18 @@ public class TextEditor extends javax.swing.JFrame {
                 }
             };
 
+            //Compile file 
             JavaCompiler.CompilationTask task = compiler.getTask(
                     null, fileManager, diagnostics, Arrays.asList("-proc:none"), null, Arrays.asList(file));
 
             task.call();
 
+            //Highlighter initialize
             Highlighter.HighlightPainter errorPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.PINK);
             Highlighter highlighter = view.getWordSpace().getHighlighter();
             highlighter.removeAllHighlights();
 
+            //run through the diagnostics to determine where errors are and highlight
             for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
 
                 long startPos = diagnostic.getStartPosition();
@@ -627,6 +666,7 @@ public class TextEditor extends javax.swing.JFrame {
             }
         }
 
+        //Apply highlighting to loaded document
         public void applyFullDocumentHighlighting() {
             StyledDocument doc = view.getWordSpace().getStyledDocument();
             int length = doc.getLength();
